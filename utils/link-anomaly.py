@@ -6,15 +6,14 @@
 """
 import sys
 import os
-
-# for adding dependencies to support import export module
+# To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from data.tweets import tweets_data
+
+alpha = 0.5
+beta = 0.5
+
 def hitung_probabilitas(n, m, k):
-    alpha = 0.5
-    beta = 0.5
-    
     hasil = 1.0  
 
     for i in range(n + 1): 
