@@ -60,11 +60,7 @@ for tweet in tweets_data:
         tweet['time'] = datetime.strptime(tweet['time'], "%Y-%m-%d %H:%M:%S")
 
 # Mengurutkan berdasarkan 'time'
-tweets_data.sort(key=lambda x: x['time'])  # Asumsi 'time' sekarang adalah datetime
-
-# Menampilkan tweets_data setelah diurutkan
-for tweet in tweets_data:
-    print(tweet)
+tweets_data.sort(key=lambda x: x['time']) 
 
 # ---------- Tahap 1: Probabilitas Mention ----------
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
@@ -91,12 +87,12 @@ def hitung_probabilitas_mention(tweets):
         
         print(f"Iterasi untuk ID Tweet {tweets[i]['id']}: {iterasi}")
         
-        hasil_probabilitas_mention.append({"id": tweets[i]['id'], "skor_anomaly": iterasi})
+        hasil_probabilitas_mention.append({"id": tweets[i]['id'], "probabilitas_mention": iterasi})
     
     return hasil_probabilitas_mention
 
 hitung_probabilitas_mention(tweets_data)
-print(hasil_probabilitas_mention)
+# print(hasil_probabilitas_mention)
 
 # print(tweets_data)
 
@@ -105,12 +101,11 @@ print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
 hasil_probabilitas_user = []
 
 def hitung_probabilitas_user(tweets):
-    probabilitas_mention = hitung_probabilitas_mention(tweets_data)
-    print("Hasil prob = ",probabilitas_mention)
     for row in tweets:
         pmention = hitung_mention_tiap_id(row['id'], tweets)  
         print(f"ID Tweet: {row['id']}, pmention: {pmention}") 
-
+        hasil_probabilitas_user.append({"id": row['id'], "probabilitas_user": pmention})
+    return hasil_probabilitas_user
 
 def hitung_mention_tiap_id(target_id, tweets_data):
     temp_mentions = []
@@ -123,6 +118,7 @@ def hitung_mention_tiap_id(target_id, tweets_data):
         temp_m = tweet['jumlah_mention']
         m += temp_m
 
+        # Pastikan mencetak isi mentions dengan benar
         if isinstance(mentions, str):  
             mentions_list = mentions.split(', ')  
         else:
@@ -133,16 +129,24 @@ def hitung_mention_tiap_id(target_id, tweets_data):
             if tweet['jumlah_mention'] > 1:
                 for i in mentions_list:  
                     mu = temp_mentions.count(i)
+                    # print(f"Memeriksa {i} di temp_mentions. Count: {mu}")  # Debug output
                     pmention += mu / (m + y)
             else:
-                print() 
-
+                mention_string = ', '.join(mentions_list)
+                mu = temp_mentions.count(mention_string)
+                pmention += mu / (m + y)
+    
     return pmention  # Kembalikan nilai pmention
 
 print("------------------------testing-------------------------")
 
 # Misalkan tweets_data adalah data tweet yang sudah ada
 hitung_probabilitas_user(tweets_data)
+
+print("----------hasil probabilitas mention-----------")
+print(hasil_probabilitas_mention)
+print('----------hasil probabilitas user----------')
+print(hasil_probabilitas_user)
 
 
 
