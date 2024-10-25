@@ -1,5 +1,7 @@
 import sys
 import os
+import json
+import math
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
@@ -39,7 +41,7 @@ def fetch_tweets_data():
                 "id": row[0],
                 "tweet_text": row[1],
                 "username": row[2],
-                "time": row[3],  # Pastikan ini adalah datetime string
+                "time": row[3], 
                 "mentions": mentions_list,  
                 "jumlah_mention": row[5]
             }
@@ -65,7 +67,7 @@ tweets_data.sort(key=lambda x: x['time'])
 # ---------- Tahap 1: Probabilitas Mention ----------
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
 
-hasil_probabilitas_mention = []
+hasil_perhitungan = []
 def hitung_probabilitas_mention(tweets):
     alpha = 0.5
     beta = 0.5
@@ -86,27 +88,15 @@ def hitung_probabilitas_mention(tweets):
             iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
         
         print(f"Iterasi untuk ID Tweet {tweets[i]['id']}: {iterasi}")
-        
-        hasil_probabilitas_mention.append({"id": tweets[i]['id'], "probabilitas_mention": iterasi})
+        hasil_perhitungan.append({"id": tweets[i]['id'], "probabilitas_mention": iterasi})
     
-    return hasil_probabilitas_mention
+    return hasil_perhitungan
 
 hitung_probabilitas_mention(tweets_data)
-# print(hasil_probabilitas_mention)
-
-# print(tweets_data)
 
 # ---------- Tahap 2: Hitung Probablitas Mention User ----------
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
-hasil_probabilitas_user = []
-
-def hitung_probabilitas_user(tweets):
-    for row in tweets:
-        pmention = hitung_mention_tiap_id(row['id'], tweets)  
-        print(f"ID Tweet: {row['id']}, pmention: {pmention}") 
-        hasil_probabilitas_user.append({"id": row['id'], "probabilitas_user": pmention})
-    return hasil_probabilitas_user
-
+# hasil_probabilitas_user = []
 def hitung_mention_tiap_id(target_id, tweets_data):
     temp_mentions = []
     m = 0
@@ -118,7 +108,6 @@ def hitung_mention_tiap_id(target_id, tweets_data):
         temp_m = tweet['jumlah_mention']
         m += temp_m
 
-        # Pastikan mencetak isi mentions dengan benar
         if isinstance(mentions, str):  
             mentions_list = mentions.split(', ')  
         else:
@@ -129,24 +118,38 @@ def hitung_mention_tiap_id(target_id, tweets_data):
             if tweet['jumlah_mention'] > 1:
                 for i in mentions_list:  
                     mu = temp_mentions.count(i)
-                    # print(f"Memeriksa {i} di temp_mentions. Count: {mu}")  # Debug output
                     pmention += mu / (m + y)
             else:
                 mention_string = ', '.join(mentions_list)
                 mu = temp_mentions.count(mention_string)
                 pmention += mu / (m + y)
     
-    return pmention  # Kembalikan nilai pmention
+    return pmention  
+def hitung_probabilitas_user(tweets):
+    for index, row in enumerate(tweets):
+        pmention = hitung_mention_tiap_id(row['id'], tweets)  
+        print(f"ID Tweet: {row['id']}, pmention: {pmention}") 
+        for item in hasil_perhitungan:
+            if item['id'] == row['id']:
+                item['probabilitas_user'] = pmention
+                
+    return hasil_perhitungan
 
-print("------------------------testing-------------------------")
-
-# Misalkan tweets_data adalah data tweet yang sudah ada
 hitung_probabilitas_user(tweets_data)
 
-print("----------hasil probabilitas mention-----------")
-print(hasil_probabilitas_mention)
-print('----------hasil probabilitas user----------')
-print(hasil_probabilitas_user)
+print('---------- Hitung Skor Anomaly ----------')
+# print(json.dumps(hasil_perhitungan, indent=4))
+def hitung_skor_anomaly(hasil):
+    for skor in hasil:
+        nilai_mention = skor['probabilitas_mention']
+        nilai_user = skor['probabilitas_user']
+        skor_anomaly = -math.log10(nilai_mention) - math.log10(nilai_user)
+        for item in hasil_perhitungan:
+            item['skor_anomaly'] = skor_anomaly
+
+hitung_skor_anomaly(hasil_perhitungan)
+print(json.dumps(hasil_perhitungan, indent=4))
+
 
 
 
