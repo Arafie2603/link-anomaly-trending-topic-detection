@@ -5,7 +5,7 @@ import math
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
-from datetime import datetime
+from datetime import datetime, timedelta
 
 """
 1. Perhitungan Skor Anomaly
@@ -15,7 +15,7 @@ from datetime import datetime
 """
 
 """
-Penjelasan tiap variabel di bagian perhitungan skor anomaly
+Penjelasan tiap variabel di bagian perhitungan skor anomaly tahap pertama:
 m = Jumlah mention dalam rentang waktu perhitungan
 n = Indeks tweet pada rentang waktu perhitungan 
 k = Jumlah mention pada tweet
@@ -35,7 +35,8 @@ def fetch_tweets_data():
         results = cursor.fetchall()
         
         for row in results:
-            mentions_list = row[4].split(", ") if row[4] else []  # Menggunakan split untuk mengubah string menjadi list
+            # Menggunakan split untuk mengubah string menjadi list
+            mentions_list = row[4].split(", ") if row[4] else []  
             
             tweet = {
                 "id": row[0],
@@ -87,16 +88,25 @@ def hitung_probabilitas_mention(tweets):
                 iterasi *= (n + alpha) / (m + k + beta)
             iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
         
+        waktu_str = tweets[i]['time'].strftime("%Y-%m-%d %H:%M:%S")
+        
         print(f"Iterasi untuk ID Tweet {tweets[i]['id']}: {iterasi}")
-        hasil_perhitungan.append({"id": tweets[i]['id'], "probabilitas_mention": iterasi})
+        hasil_perhitungan.append({"id": tweets[i]['id'],"time": waktu_str ,"probabilitas_mention": iterasi})
     
     return hasil_perhitungan
 
 hitung_probabilitas_mention(tweets_data)
 
 # ---------- Tahap 2: Hitung Probablitas Mention User ----------
+"""
+Penjelasan tiap variabel di bagian perhitungan skor anomaly tahap pertama:
+temp_mentions = digunakan untuk menyimpan mentions tiap iterasi, karena akan dilakukan perhitungan mundur apakah mention disebutkan
+                dalam data sebelumnya
+y = nilai konstan referensi dari penelitian Takahashi
+m = fungsinya masih sama seperti tahapan pertama
+pmention = variabel yang digunakan untuk menghitung skor probabilitas mention user
+"""
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
-# hasil_probabilitas_user = []
 def hitung_mention_tiap_id(target_id, tweets_data):
     temp_mentions = []
     m = 0
@@ -126,7 +136,7 @@ def hitung_mention_tiap_id(target_id, tweets_data):
     
     return pmention  
 def hitung_probabilitas_user(tweets):
-    for index, row in enumerate(tweets):
+    for row in tweets:
         pmention = hitung_mention_tiap_id(row['id'], tweets)  
         print(f"ID Tweet: {row['id']}, pmention: {pmention}") 
         for item in hasil_perhitungan:
@@ -143,13 +153,54 @@ def hitung_skor_anomaly(hasil):
     for skor in hasil:
         nilai_mention = skor['probabilitas_mention']
         nilai_user = skor['probabilitas_user']
-        skor_anomaly = -math.log10(nilai_mention) - math.log10(nilai_user)
+
         for item in hasil_perhitungan:
-            item['skor_anomaly'] = skor_anomaly
+            if item['id'] == skor['id']:
+                skor_anomaly = -math.log10(nilai_mention) - math.log10(nilai_user)
+                item['skor_anomaly'] = skor_anomaly
 
 hitung_skor_anomaly(hasil_perhitungan)
 print(json.dumps(hasil_perhitungan, indent=4))
 
+"""
+2. Menghitung Agregasi Skor Anomaly
+Program test ini menggunakan diskrit time sebesar 6 menit, dan jumlah diksrit sebanyak 5
+"""
+
+
+hasil_agregasi = []
+def hitung_skor_agregasi(hasil_skor):
+    # Ambil waktu awal dari hasil perhitungan
+    waktu_awal_string = hasil_perhitungan[0]['time']
+    waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
+
+    # Tentukan interval waktu untuk diskrit
+    window_r = timedelta(minutes=6)
+    jumlah_diskrit = 5
+
+    # Tentukan waktu awal dan akhir
+    waktu_akhir = waktu_awal + window_r
+
+    for index in range(jumlah_diskrit):
+        # Reset jumlah skor anomaly untuk setiap diskrit
+        jml_skor_anomaly = 0  
+        for data in hasil_skor:
+            temp_waktu = data['time']
+            tweet_waktu = datetime.strptime(temp_waktu, "%Y-%m-%d %H:%M:%S")
+
+            if waktu_awal <= tweet_waktu < waktu_akhir:
+                jml_skor_anomaly += data['skor_anomaly']  
+        s_x = (1/4) * jml_skor_anomaly  # Hitung s_x
+        print(s_x)
+        hasil_agregasi.append({"diskrit": index + 1, "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), "waktu_akhir": waktu_akhir.strftime('%Y-%m-%d %H:%M:%S'), "s_x": s_x})
+
+        waktu_awal = waktu_akhir
+        waktu_akhir += window_r
+
+    return hasil_agregasi
+
+hasil_agregasi = hitung_skor_agregasi(hasil_perhitungan)
+print(hasil_agregasi)
 
 
 
