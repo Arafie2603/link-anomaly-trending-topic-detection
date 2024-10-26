@@ -200,7 +200,7 @@ def hitung_skor_agregasi(hasil_skor):
     return hasil_agregasi
 
 hasil_agregasi = hitung_skor_agregasi(hasil_perhitungan)
-print(hasil_agregasi)
+print(json.dumps(hasil_agregasi, indent=4))
 
 
 
