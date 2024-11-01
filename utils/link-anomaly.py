@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import math
+import numpy as np
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
@@ -166,9 +167,8 @@ print(json.dumps(hasil_perhitungan, indent=4))
 2. Menghitung Agregasi Skor Anomaly
 Program test ini menggunakan diskrit time sebesar 6 menit, dan jumlah diksrit sebanyak 5
 """
-
-
 hasil_agregasi = []
+skor_agregasi = []
 def hitung_skor_agregasi(hasil_skor):
     # Ambil waktu awal dari hasil perhitungan
     waktu_awal_string = hasil_perhitungan[0]['time']
@@ -193,6 +193,7 @@ def hitung_skor_agregasi(hasil_skor):
         s_x = (1/4) * jml_skor_anomaly  # Hitung s_x
         print(s_x)
         hasil_agregasi.append({"diskrit": index + 1, "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), "waktu_akhir": waktu_akhir.strftime('%Y-%m-%d %H:%M:%S'), "s_x": s_x})
+        skor_agregasi.append(round(s_x, 2))
 
         waktu_awal = waktu_akhir
         waktu_akhir += window_r
@@ -204,4 +205,95 @@ print(json.dumps(hasil_agregasi, indent=4))
 
 
 
+# ========================== IMPLEMENTASI SDNML ==========================
 
+"""
+Langkah 1: First Layering Learning
+Langkah - langkahnya :
+    1. Mencari nilai Koefisien AR
+        a. Mencari nilai Vt dan Xt
+        b. Mencari nilai invers Vt
+        c. Menghitung metode Sherman-Morisson-Woodburry
+        d. Implementasi perhitungan koefisien AR 
+"""
+"""
+V_t_list = list untuk menampung hasil perhitungan dari Vt 
+weights = hasil dari perhitungan nilai bobot
+X_t_list = list untuk menampung hasil perhitungan dari Xt
+hitung_inverse = fungsi yang digunakan untuk menghitung inverse dan akan menghitung inverse menggunakan pseudo-inverse jika matriks Vt merupakan singular
+Ct_list = list yang menampung perhitungan dari nilai Ct
+inverse_matrix = variabel yang digunakan untuk menyimpan hasil perhitungan invers dari matriks
+"""
+# Mencari nilai bobot wj
+r = 0.9
+weights = np.array([round(r * (1 - r) ** i, 5) for i in range(len(hasil_agregasi))])  
+aggregation_scores = np.array(skor_agregasi)
+
+# a. Menghitung matriks V_t dan r untuk setiap bobot di r
+
+V_t_list = []
+for weight in weights:
+    V_t = weight * np.outer(skor_agregasi, skor_agregasi)  
+    V_t_list.append(V_t)
+
+X_t_list = []
+for i, weight in enumerate(weights):
+    temp_xt = weight * aggregation_scores[i] * aggregation_scores[i]
+    X_t_list.append(round(temp_xt, 4))
+print(f"hasil dari xt = {X_t_list}")
+    
+
+# Fungsi untuk menghitung invers dengan pendekatan pseudo-inverse jika matriks singular
+def hitung_invers(matrix):
+    try:
+        return np.linalg.inv(matrix)
+    except np.linalg.LinAlgError:
+        return np.linalg.pinv(matrix)
+
+# b. Menghitung nilai Ct untuk setiap matriks Vt dan x (agregation_score)
+Ct_list = []
+for i, matrix in enumerate(V_t_list):
+    inverse_matrix = hitung_invers(matrix)
+    Ct_temp = weights[i] * np.dot(aggregation_scores.T, np.dot(inverse_matrix, aggregation_scores))
+    Ct_list.append(Ct_temp)
+    print(f"Invers dari Vt{i+1} (menggunakan pseudo-inverse jika singular):")
+    # print(inverse_matrix)
+    print(f"Nilai C_t untuk Vt{i+1}: {Ct_temp:.5f}")
+    print()
+
+
+
+# c. Menghitung metode Sherman-Morrison-Woodbury
+inverse_matrix = [hitung_invers(vt) for vt in V_t_list]  
+
+# Hasil perhitungan Sherman-Morrison-Woodbury
+for i in range(len(weights)):
+    r = weights[i]
+    inv_vt = inverse_matrix[i]
+    x = aggregation_scores
+    Ct = Ct_list[i]
+    
+    term1 = (1 / (1 - r)) * inv_vt
+    term2 = (r / (1 - r)) * np.dot(inv_vt, np.dot(x.reshape(-1, 1), x.reshape(1, -1))).dot(inv_vt) / (1 - r + Ct)
+    
+    # Hasil invers baru Vt setelah perhitungan punya Sherman
+    Vt_new_inv = term1 - term2
+
+    print(f"Hasil invers Vt baru untuk indeks {i+1}:")
+    print(Vt_new_inv)
+    print()
+
+
+# d. Implementasi perhitungan koefisien AR 
+a_t_list = [] 
+for i in range(len(weights)):
+    inv_vt = inverse_matrix[i]
+    chi_t = X_t_list[i] 
+
+    # Menghitung ât
+    a_t_temp = np.dot(inv_vt, chi_t)
+    a_t_list.append(a_t_temp)
+
+    print(f"Hasil ât untuk indeks {i+1}: {a_t_temp}")
+
+# print("Hasil ât list:", a_t_list)
