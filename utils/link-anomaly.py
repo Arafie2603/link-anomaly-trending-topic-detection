@@ -70,31 +70,51 @@ tweets_data.sort(key=lambda x: x['time'])
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
 
 hasil_perhitungan = []
+
 def hitung_probabilitas_mention(tweets):
     alpha = 0.5
     beta = 0.5
     m = 0
+    k_sigma = 0
+    # Set untuk menyimpan username unik, kenapa make set? karena set cocok untuk memecahkan masalah kita
+    # Masalahnya apa? kita perlu menghitung k_sigma di tiap iterasi, di mana k_sigma ini dihitung dari penyebutan mention di tiap iterasi
+    # di mana k_sigma dihitung dari field usn twitter, di mana jika ada usn dengan nilai yang sama tidak dihitung double, ini cocok menggunakan set
+    # di mana set ini melarang penggunaan id yang sama, atau set ini tipe data yang key nya harus unique 
+    unique_usernames = set() 
 
-    for i in range(len(tweets)):  
+    for i in range(len(tweets)):
         iterasi = 1.0
         k = tweets[i]['jumlah_mention']  
         temp_m = tweets[i]['jumlah_mention'] 
         m += temp_m
-        
-        n = i + 1 
+        n = i + 1
         print(f"ID Tweet: {n}")
-        
-        for j in range(n):
+
+        # username digunain untuk menangkap username yang disebutin pada tiap iterasi
+        # tujuannya nanti buat menentukan nilai k_sigma, pada setiap iterasi
+        username = tweets[i]['username']
+        if username not in unique_usernames:
+            unique_usernames.add(username) 
+            k_sigma += 1 
+
+        # Perhitungan iterasi
+        for j in range(k_sigma):
             if j == 0:
                 iterasi *= (n + alpha) / (m + k + beta)
             iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
-        
+
         waktu_str = tweets[i]['time'].strftime("%Y-%m-%d %H:%M:%S")
-        
+
         print(f"Iterasi untuk ID Tweet {tweets[i]['id']}: {iterasi}")
-        hasil_perhitungan.append({"id": tweets[i]['id'],"time": waktu_str ,"probabilitas_mention": iterasi})
+        hasil_perhitungan.append({
+            "id": tweets[i]['id'],
+            "time": waktu_str,
+            "probabilitas_mention": iterasi
+        })
     
     return hasil_perhitungan
+
+
 
 hitung_probabilitas_mention(tweets_data)
 
@@ -167,8 +187,10 @@ print(json.dumps(hasil_perhitungan, indent=4))
 2. Menghitung Agregasi Skor Anomaly
 Program test ini menggunakan diskrit time sebesar 6 menit, dan jumlah diksrit sebanyak 5
 """
+
 hasil_agregasi = []
 skor_agregasi = []
+
 def hitung_skor_agregasi(hasil_skor):
     # Ambil waktu awal dari hasil perhitungan
     waktu_awal_string = hasil_perhitungan[0]['time']
@@ -181,6 +203,10 @@ def hitung_skor_agregasi(hasil_skor):
     # Tentukan waktu awal dan akhir
     waktu_akhir = waktu_awal + window_r
 
+    # Buat list untuk menyimpan skor anomaly yang masuk ke setiap diskrit
+    # catatan: var diskrit_anomaly hanya buat pengecekan aja, jadi kalau udah fix, nanti ingetin untuk dihapus
+    diskrit_anomaly = [[] for _ in range(jumlah_diskrit)]
+
     for index in range(jumlah_diskrit):
         # Reset jumlah skor anomaly untuk setiap diskrit
         jml_skor_anomaly = 0  
@@ -189,10 +215,19 @@ def hitung_skor_agregasi(hasil_skor):
             tweet_waktu = datetime.strptime(temp_waktu, "%Y-%m-%d %H:%M:%S")
 
             if waktu_awal <= tweet_waktu < waktu_akhir:
-                jml_skor_anomaly += data['skor_anomaly']  
-        s_x = (1/4) * jml_skor_anomaly  # Hitung s_x
-        print(s_x)
-        hasil_agregasi.append({"diskrit": index + 1, "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), "waktu_akhir": waktu_akhir.strftime('%Y-%m-%d %H:%M:%S'), "s_x": s_x})
+                jml_skor_anomaly += data['skor_anomaly']
+                # Simpan skor anomaly yang memenuhi syarat ke dalam list diskrit
+                diskrit_anomaly[index].append(data)  
+        # Hitung s_x
+        # Kenapa 1/6? karena studi case saat ini window r nya = 
+        s_x = (1/6) * jml_skor_anomaly  
+        hasil_agregasi.append({
+            "diskrit": index + 1, 
+            "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), 
+            "waktu_akhir": waktu_akhir.strftime('%Y-%m-%d %H:%M:%S'), 
+            "s_x": round(s_x, 2),
+            "anomalies": diskrit_anomaly[index] 
+        })
         skor_agregasi.append(round(s_x, 2))
 
         waktu_awal = waktu_akhir
@@ -202,6 +237,7 @@ def hitung_skor_agregasi(hasil_skor):
 
 hasil_agregasi = hitung_skor_agregasi(hasil_perhitungan)
 print(json.dumps(hasil_agregasi, indent=4))
+
 
 
 
@@ -295,5 +331,6 @@ for i in range(len(weights)):
     a_t_list.append(a_t_temp)
 
     print(f"Hasil ât untuk indeks {i+1}: {a_t_temp}")
+
 
 # print("Hasil ât list:", a_t_list)
