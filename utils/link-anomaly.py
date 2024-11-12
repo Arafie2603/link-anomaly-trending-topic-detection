@@ -7,6 +7,7 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
 from datetime import datetime, timedelta
+from scipy.special import gamma
 
 """
 1. Perhitungan Skor Anomaly
@@ -25,25 +26,26 @@ hasil_prob = variabel sementara untuk menghitung hasil perhitungan probabilitas 
 iterasi = variabel yang menampung perhitungan pada setiap tweets
 """
 
+from datetime import datetime
+
 def fetch_tweets_data():
     connection = create_connection()
     tweets_data = []
 
     if connection is not None:
         cursor = connection.cursor()
-        cursor.execute("SELECT * FROM tweets")
+        cursor.execute("SELECT id, created_at, username, full_text, mentions, jumlah_mention FROM data_preprocessed")
         
         results = cursor.fetchall()
         
         for row in results:
-            # Menggunakan split untuk mengubah string menjadi list
             mentions_list = row[4].split(", ") if row[4] else []  
             
             tweet = {
                 "id": row[0],
-                "tweet_text": row[1],
+                "created_at": row[1],
                 "username": row[2],
-                "time": row[3], 
+                "full_text": row[3], 
                 "mentions": mentions_list,  
                 "jumlah_mention": row[5]
             }
@@ -57,14 +59,13 @@ def fetch_tweets_data():
 # Fetching the tweets data
 tweets_data = fetch_tweets_data()
 
-# Pastikan 'time' adalah string sebelum mengonversi
+# Pastikan 'created_at' adalah string sebelum mengonversi
 for tweet in tweets_data:
-    # Cek apakah 'time' sudah berupa datetime
-    if isinstance(tweet['time'], str):
-        tweet['time'] = datetime.strptime(tweet['time'], "%Y-%m-%d %H:%M:%S")
+    if isinstance(tweet['created_at'], str):
+        tweet['created_at'] = datetime.strptime(tweet['created_at'], "%Y-%m-%d %H:%M:%S")
 
-# Mengurutkan berdasarkan 'time'
-tweets_data.sort(key=lambda x: x['time']) 
+# Mengurutkan berdasarkan 'created_at'
+tweets_data.sort(key=lambda x: x['created_at']) 
 
 # ---------- Tahap 1: Probabilitas Mention ----------
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
@@ -76,58 +77,46 @@ def hitung_probabilitas_mention(tweets):
     beta = 0.5
     m = 0
     k_sigma = 0
-    # Set untuk menyimpan username unik, kenapa make set? karena set cocok untuk memecahkan masalah kita
-    # Masalahnya apa? kita perlu menghitung k_sigma di tiap iterasi, di mana k_sigma ini dihitung dari penyebutan mention di tiap iterasi
-    # di mana k_sigma dihitung dari field usn twitter, di mana jika ada usn dengan nilai yang sama tidak dihitung double, ini cocok menggunakan set
-    # di mana set ini melarang penggunaan id yang sama, atau set ini tipe data yang key nya harus unique 
-    unique_usernames = set() 
+    unique_usernames = set()
 
-    for i in range(len(tweets)):
+    for i, tweet in enumerate(tweets):
         iterasi = 1.0
-        k = tweets[i]['jumlah_mention']  
-        temp_m = tweets[i]['jumlah_mention'] 
+        k = tweet['jumlah_mention']  
+        temp_m = tweet['jumlah_mention'] 
         m += temp_m
         n = i + 1
-        print(f"ID Tweet: {n}")
 
-        # username digunain untuk menangkap username yang disebutin pada tiap iterasi
-        # tujuannya nanti buat menentukan nilai k_sigma, pada setiap iterasi
-        username = tweets[i]['username']
+        username = tweet['username']
         if username not in unique_usernames:
-            unique_usernames.add(username) 
+            unique_usernames.add(username)
             k_sigma += 1 
 
-        # Perhitungan iterasi
         for j in range(k_sigma):
             if j == 0:
                 iterasi *= (n + alpha) / (m + k + beta)
             iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
 
-        waktu_str = tweets[i]['time'].strftime("%Y-%m-%d %H:%M:%S")
+        waktu_str = tweet['created_at'].strftime("%Y-%m-%d %H:%M:%S")
 
-        print(f"Iterasi untuk ID Tweet {tweets[i]['id']}: {iterasi}")
         hasil_perhitungan.append({
-            "id": tweets[i]['id'],
-            "time": waktu_str,
+            "id": tweet['id'],
+            "created_at": waktu_str,
             "probabilitas_mention": iterasi
         })
     
     return hasil_perhitungan
 
+hasil_mention = hitung_probabilitas_mention(tweets_data)
+# hasil_filtered_mention = [hasil for hasil in hasil_mention if 1 <= hasil["id"] <= 100]
 
+# # Cetak hasil probabilitas mention untuk ID 1-100
+# for hasil in hasil_filtered_mention:
+#     print(f"ID: {hasil['id']}, Waktu: {hasil['created_at']}, Probabilitas Mention: {hasil['probabilitas_mention']}")
 
-hitung_probabilitas_mention(tweets_data)
 
 # ---------- Tahap 2: Hitung Probablitas Mention User ----------
-"""
-Penjelasan tiap variabel di bagian perhitungan skor anomaly tahap pertama:
-temp_mentions = digunakan untuk menyimpan mentions tiap iterasi, karena akan dilakukan perhitungan mundur apakah mention disebutkan
-                dalam data sebelumnya
-y = nilai konstan referensi dari penelitian Takahashi
-m = fungsinya masih sama seperti tahapan pertama
-pmention = variabel yang digunakan untuk menghitung skor probabilitas mention user
-"""
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
+
 def hitung_mention_tiap_id(target_id, tweets_data):
     temp_mentions = []
     m = 0
@@ -156,17 +145,23 @@ def hitung_mention_tiap_id(target_id, tweets_data):
                 pmention += mu / (m + y)
     
     return pmention  
+
 def hitung_probabilitas_user(tweets):
     for row in tweets:
         pmention = hitung_mention_tiap_id(row['id'], tweets)  
-        print(f"ID Tweet: {row['id']}, pmention: {pmention}") 
         for item in hasil_perhitungan:
             if item['id'] == row['id']:
                 item['probabilitas_user'] = pmention
-                
+
     return hasil_perhitungan
 
-hitung_probabilitas_user(tweets_data)
+hasil_probabilitas_user = hitung_probabilitas_user(tweets_data)
+hasil_filtered_user = [hasil for hasil in hasil_probabilitas_user if 1 <= hasil["id"] <= 100]
+
+# Cetak hasil probabilitas mention user untuk ID 1-100
+# for hasil in hasil_filtered_user:
+#     print(f"ID: {hasil['id']}, Waktu: {hasil['created_at']}, Probabilitas Mention: {hasil['probabilitas_mention']}, Probabilitas User: {hasil['probabilitas_user']}")
+
 
 print('---------- Hitung Skor Anomaly ----------')
 # print(json.dumps(hasil_perhitungan, indent=4))
@@ -181,54 +176,57 @@ def hitung_skor_anomaly(hasil):
                 item['skor_anomaly'] = skor_anomaly
 
 hitung_skor_anomaly(hasil_perhitungan)
-print(json.dumps(hasil_perhitungan, indent=4))
+# print(json.dumps(hasil_perhitungan, indent=4))
 
 """
 2. Menghitung Agregasi Skor Anomaly
-Program test ini menggunakan diskrit time sebesar 6 menit, dan jumlah diksrit sebanyak 5
+Program ini menggunakan diskrit time sebesar 6 jam, dan jumlah diskrit sebanyak 120
 """
 
 hasil_agregasi = []
 skor_agregasi = []
 
+print('---------- Hitung Skor Agregasi ----------')
 def hitung_skor_agregasi(hasil_skor):
     # Ambil waktu awal dari hasil perhitungan
-    waktu_awal_string = hasil_perhitungan[0]['time']
+    waktu_awal_string = hasil_skor[0]['created_at']
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
 
     # Tentukan interval waktu untuk diskrit
-    window_r = timedelta(minutes=6)
-    jumlah_diskrit = 5
+    # Ubah ke 1 jam
+    # Ubah ke 648
+    window_r = timedelta(hours=1)  
+    jumlah_diskrit = 648  
 
     # Tentukan waktu awal dan akhir
     waktu_akhir = waktu_awal + window_r
 
     # Buat list untuk menyimpan skor anomaly yang masuk ke setiap diskrit
-    # catatan: var diskrit_anomaly hanya buat pengecekan aja, jadi kalau udah fix, nanti ingetin untuk dihapus
     diskrit_anomaly = [[] for _ in range(jumlah_diskrit)]
 
     for index in range(jumlah_diskrit):
         # Reset jumlah skor anomaly untuk setiap diskrit
         jml_skor_anomaly = 0  
         for data in hasil_skor:
-            temp_waktu = data['time']
+            temp_waktu = data['created_at']
             tweet_waktu = datetime.strptime(temp_waktu, "%Y-%m-%d %H:%M:%S")
 
             if waktu_awal <= tweet_waktu < waktu_akhir:
                 jml_skor_anomaly += data['skor_anomaly']
                 # Simpan skor anomaly yang memenuhi syarat ke dalam list diskrit
                 diskrit_anomaly[index].append(data)  
+        
         # Hitung s_x
-        # Kenapa 1/6? karena studi case saat ini window r nya = 
-        s_x = (1/6) * jml_skor_anomaly  
+        # Faktor 1/6 tetap, karena masih sesuai studi kasus
+        s_x = (1 / window_r.total_seconds() / 3600) * jml_skor_anomaly  
         hasil_agregasi.append({
             "diskrit": index + 1, 
             "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), 
             "waktu_akhir": waktu_akhir.strftime('%Y-%m-%d %H:%M:%S'), 
-            "s_x": round(s_x, 2),
+            "s_x": s_x,
             "anomalies": diskrit_anomaly[index] 
         })
-        skor_agregasi.append(round(s_x, 2))
+        skor_agregasi.append(s_x)
 
         waktu_awal = waktu_akhir
         waktu_akhir += window_r
@@ -236,8 +234,8 @@ def hitung_skor_agregasi(hasil_skor):
     return hasil_agregasi
 
 hasil_agregasi = hitung_skor_agregasi(hasil_perhitungan)
-print(json.dumps(hasil_agregasi, indent=4))
-
+# print(json.dumps(hasil_agregasi, indent=4))
+# print(hasil_agregasi)
 
 
 
@@ -251,8 +249,10 @@ Langkah - langkahnya :
         b. Mencari nilai invers Vt
         c. Menghitung metode Sherman-Morisson-Woodburry
         d. Implementasi perhitungan koefisien AR 
-"""
-"""
+        e. menghitung faktor normalisasi Kt(xt-1)
+        f. menghitung fungsi densitas SDNML 
+
+informasi penggunaan variabel : 
 V_t_list = list untuk menampung hasil perhitungan dari Vt 
 weights = hasil dari perhitungan nilai bobot
 X_t_list = list untuk menampung hasil perhitungan dari Xt
@@ -260,24 +260,23 @@ hitung_inverse = fungsi yang digunakan untuk menghitung inverse dan akan menghit
 Ct_list = list yang menampung perhitungan dari nilai Ct
 inverse_matrix = variabel yang digunakan untuk menyimpan hasil perhitungan invers dari matriks
 """
-# Mencari nilai bobot wj
-r = 0.9
-weights = np.array([round(r * (1 - r) ** i, 5) for i in range(len(hasil_agregasi))])  
-aggregation_scores = np.array(skor_agregasi)
 
-# a. Menghitung matriks V_t dan r untuk setiap bobot di r
+r = 0.005
+jumlah_diskrit = 648  
+weights = np.array([r * (1 - r) ** i for i in range(len(hasil_agregasi))])  
+aggregation_scores = np.array(skor_agregasi)  
 
+# Menghitung matriks V_t untuk setiap bobot
 V_t_list = []
 for weight in weights:
-    V_t = weight * np.outer(skor_agregasi, skor_agregasi)  
+    V_t = weight * np.outer(aggregation_scores, aggregation_scores)  
     V_t_list.append(V_t)
 
-X_t_list = []
-for i, weight in enumerate(weights):
-    temp_xt = weight * aggregation_scores[i] * aggregation_scores[i]
-    X_t_list.append(round(temp_xt, 4))
-print(f"hasil dari xt = {X_t_list}")
-    
+# Menghitung nilai X_t untuk setiap bobot
+x_chi_t = 0
+for i in range(len(hasil_agregasi)):
+    temp_xt = weights[i] * aggregation_scores[i] * aggregation_scores[i]
+    x_chi_t += temp_xt 
 
 # Fungsi untuk menghitung invers dengan pendekatan pseudo-inverse jika matriks singular
 def hitung_invers(matrix):
@@ -292,12 +291,6 @@ for i, matrix in enumerate(V_t_list):
     inverse_matrix = hitung_invers(matrix)
     Ct_temp = weights[i] * np.dot(aggregation_scores.T, np.dot(inverse_matrix, aggregation_scores))
     Ct_list.append(Ct_temp)
-    print(f"Invers dari Vt{i+1} (menggunakan pseudo-inverse jika singular):")
-    # print(inverse_matrix)
-    print(f"Nilai C_t untuk Vt{i+1}: {Ct_temp:.5f}")
-    print()
-
-
 
 # c. Menghitung metode Sherman-Morrison-Woodbury
 inverse_matrix = [hitung_invers(vt) for vt in V_t_list]  
@@ -315,22 +308,48 @@ for i in range(len(weights)):
     # Hasil invers baru Vt setelah perhitungan punya Sherman
     Vt_new_inv = term1 - term2
 
-    print(f"Hasil invers Vt baru untuk indeks {i+1}:")
-    print(Vt_new_inv)
-    print()
-
-
 # d. Implementasi perhitungan koefisien AR 
 a_t_list = [] 
 for i in range(len(weights)):
     inv_vt = inverse_matrix[i]
-    chi_t = X_t_list[i] 
 
     # Menghitung ât
-    a_t_temp = np.dot(inv_vt, chi_t)
+    a_t_temp = np.dot(inv_vt, x_chi_t)
     a_t_list.append(a_t_temp)
 
-    print(f"Hasil ât untuk indeks {i+1}: {a_t_temp}")
-
-
+    # print(f"Hasil ât untuk indeks {i+1}: {a_t_temp}")
 # print("Hasil ât list:", a_t_list)
+
+# e. Menghitung faktor normalisasi Kt(xt-1)
+def hitung_Kt(weights, Ct_list, tweets):
+    K_t_list = []
+    d_t_list = []
+    m = 0
+
+    for i in range(len(weights)):
+        r = weights[i]
+        c_t = Ct_list[i]
+        
+        tweet = tweets[i] 
+        k = tweet['jumlah_mention'] 
+        m += k  
+
+        d_t = c_t / (1 - r + c_t)
+        d_t_list.append(d_t)
+
+        t = i + 1
+        t_0 = 0
+
+        factor1 = np.sqrt(np.pi) / (1 - d_t)
+        factor2 = np.sqrt((1 - r) / r)
+        factor3 = (1 - r) ** (-(t - m) / 2)
+        factor4 = gamma((t - t_0 - 1) / 2) / gamma((t - t_0) / 2)
+
+        K_t = factor1 * factor2 * factor3 * factor4
+        K_t_list.append(K_t)
+
+    return K_t_list, d_t_list
+K_t_list, d_t_list = hitung_Kt(aggregation_scores, weights, Ct_list, tweets_data)
+print("Nilai K_t untuk setiap iterasi:")
+for i, K_t in enumerate(K_t_list):
+    print(f"Iterasi {i+1}: K_t = {K_t}")
