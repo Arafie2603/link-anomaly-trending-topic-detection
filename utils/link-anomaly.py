@@ -205,7 +205,6 @@ def hitung_skor_agregasi(hasil_skor):
                 diskrit_anomaly[index].append(data)  
 
         s_x = (1 / window_r.total_seconds() / 3600) * jml_skor_anomaly  
-        
         hasil_agregasi.append({
             "diskrit": index + 1, 
             "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), 
@@ -249,144 +248,138 @@ inverse_matrix = variabel yang digunakan untuk menyimpan hasil perhitungan inver
 """
 
 # Inisialisasi variabel
-r = 0.005
-weights = np.array([r * (1 - r) ** i for i in range(len(hasil_agregasi))])
+r = 0.05
+
 aggregation_scores = np.array([entry["s_x"] for entry in hasil_agregasi])
 
-print("----- Agregation_score reshape ------")
-print(aggregation_scores)
+# print("----- Agregation_score reshape ------")
+# print(aggregation_scores)
 
+def hitung_weights(r, n):
+    """
+    Menghitung bobot (weights) berdasarkan formula r * (1 - r)^i.
+    
+    Parameters:
+    - r (float): Nilai bobot dasar (misalnya, tingkat diskon).
+    - n (int): Jumlah elemen/agregasi yang ingin dihitung bobotnya.
+    
+    Returns:
+    - np.array: Array berisi nilai bobot.
+    """
+    if r <= 0 or r >= 1:
+        raise ValueError("Parameter r harus berada dalam rentang (0, 1).")
+    if n <= 0:
+        raise ValueError("Parameter n harus lebih besar dari 0.")
+    
+    weights = np.array([r * (1 - r) ** i for i in range(n)])
+    return weights
+
+weights = hitung_weights(r, len(hasil_agregasi))
 print("----- weights -----")
 print(weights)
 
+# Pastikan aggregation_scores adalah vektor kolom dua dimensi
 def hitung_V_t(weights, aggregation_scores):
-    outer_product = np.outer(aggregation_scores, aggregation_scores)
-    V_t = sum(w * outer_product for w in weights)
-    return V_t
+    V_t_list = []
+    for i in range(len(weights)):
+        xj = aggregation_scores[i].reshape(-1, 1) 
+        outer_product = np.outer(xj, xj.T) 
+        V_t = weights[i] * outer_product
+        V_t_list.append(V_t)
+    return V_t_list
+
 
 def hitung_x_chi_t(weights, aggregation_scores):
-    """
-    Menghitung chi_t berdasarkan bobot dan skor agregasi sesuai dengan rumus Takahashi et al.
-
-    Parameter:
-    weights (array-like): Bobot diskon untuk setiap elemen x_j.
-    aggregation_scores (array-like): Skor agregasi untuk setiap diskrit waktu.
-
-    Mengembalikan:
-    chi_t (numpy array): Vektor chi_t yang dihitung berdasarkan bobot dan x_j.
-    """# Inisialisasi chi_t sebagai vektor dengan panjang yang sesuai dengan fitur agregasi
-
-    # Menghitung chi_t sesuai dengan rumus yang benar
-    x_chi_t = 0
-    for i in range(len(hasil_agregasi)):
-        temp_xt = weights[i] * aggregation_scores[i] * aggregation_scores[i]
-        x_chi_t += temp_xt 
-    
-    return x_chi_t
-
+    chi_t = 0
+    for j in range(len(aggregation_scores)):  
+        x_j = aggregation_scores[j].reshape(-1, 1) 
+        temp_chi_t = weights[j] * np.dot(x_j.T, x_j).item() 
+        chi_t += temp_chi_t
+    return chi_t
 
 V_t_list = hitung_V_t(weights, aggregation_scores)
 x_chi_t = hitung_x_chi_t(weights, aggregation_scores)
-print("----- VT -----")
-print(V_t_list)
 
-print("----- Xt -----")
-print(x_chi_t)
+def hitung_invers(matrix):
+    try:
+        return np.linalg.inv(matrix)
+    except np.linalg.LinAlgError:
+        return np.linalg.pinv(matrix)
 
-# def hitung_invers(matrix):
-#     matrix = np.array(matrix)
-#     if matrix.ndim == 1:
-#         matrix = matrix.reshape(-1, 1)
-    
-#     try:
-#         return np.linalg.inv(matrix)
-#     except np.linalg.LinAlgError:
-#         return np.linalg.pinv(matrix)
-    
-# print(f"dimensi agregasi = {aggregation_scores.shape}")
-# print(f"dimensi vt = {hitung_invers(V_t_list).shape}")
-
-
-
-# Fungsi untuk menghitung Ct sesuai dengan rumus
-def hitung_Ct(weights, aggregation_scores, V_t_list):
+# print("----- Xt -----")
+# print(x_chi_t)
+# Fungsi untuk menghitung Ct
+def hitung_Ct(V_t_list, aggregation_scores, weights):
     Ct_list = []
-    for i in range(len(weights)):
-        inv_vt = V_t_list  # Matriks invers V_t (dimensi 152x152)
-        r = weights[i]
-        x_t = aggregation_scores[i]
-        
-        # Perhitungan Ct sesuai rumus: Ct = r * x_t^T * V_t^{-1} * x_t
-        x_t_T = x_t.T  # x_t^T (dimensi 1, 152)
-        
-        # Pastikan dimensi perkalian dot sesuai
-        Ct = r * np.dot(np.dot(x_t_T, inv_vt), x_t)  # Operasi dot yang benar
-        
-        Ct_list.append(Ct[0, 0])  # Ambil hasil skalar Ct dari hasil dot produk
-
+    for i in range(len(aggregation_scores)):
+        inverse_matrix = hitung_invers(V_t_list[i])
+        xj = aggregation_scores[i].reshape(-1, 1) 
+        Ct_temp = weights[i] * np.dot(xj.T, np.dot(inverse_matrix, xj)).item()
+        Ct_list.append(Ct_temp)
     return Ct_list
-Ct_list = hitung_Ct(weights, aggregation_scores, V_t_list)
-print("----- Ct -----")
-print(Ct_list)
 
-Vt_new_inv_list = []
-# Pastikan aggregation_scores adalah array 1D dengan panjang 152
-print(f"Dimensi aggregation_scores: {aggregation_scores.shape}")
+# Contoh pemakaian fungsi hitung_Ct:
+# Misalkan `weights`, `aggregation_scores`, dan `V_t_list` sudah didefinisikan
 
-for i in range(len(weights)):
-    inv_vt = np.linalg.pinv(V_t_list)
-    r = weights[i]
-    
-    # Akses satu elemen dari aggregation_scores dan reshape menjadi (152, 1)
-    x = aggregation_scores[i]  # Ambil nilai pada indeks i
-    x = x.reshape(152, 1)  # reshape menjadi (152, 1) jika perlu
-    
-    Ct = Ct_list[i]
+Ct_list = hitung_Ct(V_t_list, aggregation_scores, weights)
+# # Menampilkan hasil
+# print("----- Ct -----")
+# print(Ct_list)
 
-    print(f"Dimensi x = {x.shape}")  # Pastikan x adalah (152, 1)
-    
-    # Term 1
-    term1 = (1 / (1 - r)) * inv_vt
+def sherman_morrison_woodbury(V_t_list, weights, Ct_list, aggregation_scores):
+    Vt_new_inv_list = []
+    inverse_matrix = [hitung_invers(vt) for vt in V_t_list]
+    for i in range(len(weights)):
+        r = weights[i]
+        inv_vt = inverse_matrix[i]
+        xj = aggregation_scores[i].reshape(-1, 1) 
+        Ct = Ct_list[i]
 
-    # Term 2
-    a = np.dot(x, x.T)  # Hasilnya (152, 152)
-    print(f"Dimensi a = {a.shape}")
-    
-    term2 = (r / (1 - r)) * np.dot(np.dot(inv_vt, a), inv_vt) / (1 - r + Ct)
-
-    # Hasil invers baru Vt setelah Sherman-Morrison-Woodbury
-    Vt_new_inv = term1 - term2
-    Vt_new_inv_list.append(Vt_new_inv)
-
-print("----- Sherman -----")
-print(Vt_new_inv_list)
+        term1 = (1 / (1 - r)) * inv_vt
+        term2 = (r / (1 - r)) * np.dot(inv_vt, np.dot(xj, xj.T)).dot(inv_vt) / (1 - r + Ct)
+        Vt_new_inv = term1 - term2
+        Vt_new_inv_list.append(Vt_new_inv)
+    return Vt_new_inv_list
 
 
-
-
-
+Vt_new_inv_list = sherman_morrison_woodbury(V_t_list, weights, Ct_list, aggregation_scores)
 a_t_list = [np.dot(Vt_new_inv_list[i], x_chi_t) for i in range(len(weights))]
 
-print("Hasil a_t_list:")
-for i, a_t in enumerate(a_t_list):
-    print(f"a_t[{i}]:\n", a_t)
+# print("Hasil a_t_list:")
+# for i, a_t in enumerate(a_t_list):
+#     print(f"a_t[{i}]:\n", a_t)
 
 t_0 = aggregation_scores[0]
-def hitung_Kt(weights, Ct_list):
+def hitung_Kt(weights, Ct_list, aggregation_scores, hasil_agregasi_first_layer):
+    """
+    Menghitung nilai Kt dan dt pada second layer learning menggunakan hasil agregasi pada first layer.
+
+    Parameters:
+    - weights (array-like): Bobot diskon untuk setiap elemen x_j.
+    - Ct_list (list): Daftar nilai Ct pada setiap iterasi.
+    - aggregation_scores (array-like): Skor agregasi pada setiap diskrit waktu.
+    - hasil_agregasi_first_layer (list): Hasil agregasi dari first layer untuk mendapatkan nilai m.
+
+    Returns:
+    - K_t_list (list): Daftar nilai K_t untuk setiap iterasi.
+    - d_t_list (list): Daftar nilai d_t untuk setiap iterasi.
+    """
     K_t_list = []
     d_t_list = []
-    m = 0
 
-    for i, tweet in enumerate(hasil_agregasi):
+    for i, y_score in enumerate(aggregation_scores):
         r = weights[i]
         c_t = Ct_list[i]
-        m = tweet['jumlah_mention_agregasi']
+        
+        # Ambil nilai 'jumlah_mention_agregasi' dari hasil_agregasi_first_layer
+        m = hasil_agregasi_first_layer[i]["jumlah_mention_agregasi"] if i < len(hasil_agregasi_first_layer) else 0
 
         d_t = c_t / (1 - r + c_t)
         d_t_list.append(d_t)
 
         t = i + 1
 
+        # Hitung K_t sesuai dengan formula
         factor1 = np.sqrt(np.pi) / (1 - d_t)
         factor2 = np.sqrt((1 - r) / r)
         factor3 = (1 - r) ** (-(t - m) / 2)
@@ -397,7 +390,7 @@ def hitung_Kt(weights, Ct_list):
 
     return K_t_list, d_t_list
 
-K_t_list, d_t_list = hitung_Kt(weights, Ct_list)
+K_t_list, d_t_list = hitung_Kt(weights, Ct_list,aggregation_scores, hasil_agregasi)
 
 print("----- Kt -----")
 for i, K_t in enumerate(K_t_list):
@@ -424,18 +417,15 @@ def hitung_tau_t(weights, aggregation_scores, a_t_list):
 
 tau_t_values = hitung_tau_t(weights, aggregation_scores, a_t_list)
 print("----- tau sub t -----")
-for idx, tau_t in enumerate(tau_t_values):
-    tau_t_bulat = np.round(tau_t, 2)
-    print(f"τ̂ₜ pada diskrit waktu {idx + 1}: {tau_t_bulat}")
+# for idx, tau_t in enumerate(tau_t_values):
+#     print(f"τ̂ₜ pada diskrit waktu {idx + 1}: {np.array(tau_t)}")
 
 
-def hitung_density_sdnml(tau_t_values, K_t_list, t_0):
+def hitung_density_sdnml(tau_t_values, K_t_list, t_0, agregation_scores):
     sdnml_density_values = []
-    
-    n = min(len(tau_t_values), len(K_t_list), len(hasil_agregasi))
-    
+    n = min(len(tau_t_values), len(K_t_list), len(agregation_scores))
     for t in range(n):
-        tau_t = tau_t_values[t]
+        tau_t = max(tau_t_values[t], 1e-10)
         tau_t_minus_1 = tau_t_values[t - 1] if t - 1 >= 0 else tau_t_values[0]
         
         K_t = K_t_list[t]
@@ -452,58 +442,101 @@ def hitung_density_sdnml(tau_t_values, K_t_list, t_0):
     return sdnml_density_values
 
 
-sdnml_density_values = hitung_density_sdnml(tau_t_values, K_t_list, t_0)
+sdnml_density_values = hitung_density_sdnml(tau_t_values, K_t_list, t_0, aggregation_scores)
 
-print("----- first layer learning -----")
-for t, density in enumerate(sdnml_density_values, start=1):
-    print(f"Densitas SDNML pada diskrit waktu {t + 1}: {density}")
+# print("----- first layer learning -----")
+# for t, density in enumerate(sdnml_density_values, start=1):
+#     print(f"Densitas SDNML pada diskrit waktu {t + 1}: {density}")
 
 k = 15  
-def hitung_first_layer_scoring(sdnml_density_values, k):
-    y_scores = []
+def hitung_first_layer_scoring(sdnml_density_values, k, hasil_agregasi):
+    y_scores = []  # List untuk menyimpan skor perubahan dan detail jumlah_mention_agregasi
 
     for j in range(k, len(sdnml_density_values) + 1):
         log_density_values = np.log(sdnml_density_values[j - k:j])
         y_j = (1 / k) * np.sum(log_density_values)
-        y_scores.append(y_j)
+
+        agregasi_info = hasil_agregasi[j-1] 
+
+
+        y_scores.append({
+            "y_score": y_j,
+            "jumlah_mention_agregasi": agregasi_info["jumlah_mention_agregasi"]
+        })
 
     return y_scores
 
-y_scores = hitung_first_layer_scoring(sdnml_density_values, k)
+y_scores = hitung_first_layer_scoring(sdnml_density_values, k, hasil_agregasi)
 
-print("----- first layer scoring -----")
-for idx, y_score in enumerate(y_scores, start=k):
-    print(f"Skor perubahan titik awal y_{idx}: {y_score}")
-# Menggunakan kembali parameter smoothing untuk SDNML
-# t_0 = y_scores[0] 
+# Tampilkan hasil y_scores dengan detail jumlah_mention_agregasi
+print("----- first layer scoring dengan jumlah_mention_agregasi -----")
+for idx, y_score_info in enumerate(y_scores, start=k):
+    print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
+        f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
 
-# Fungsi untuk menghitung density SDNML pada lapisan kedua (second-layer learning)
-# def hitung_second_layer_density(y_scores, weights, t_0):
-#     tau_y_values = []
-#     K_y_list = []
-#     for j in range(1, len(y_scores)):
-#         tau_y = 0.0
-#         for i in range(j):
-#             weight = weights[i]
-#             y_i = y_scores[i]
-#             tau_y += weight * (y_i - y_scores[j]) ** 2
+# Gunakan output dari first layer scoring (y_scores) sebagai input untuk second layer
 
-#         tau_y_values.append(tau_y)
+aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scores])
+t_0_second_layer = aggregation_scores_second_layer[0]
+# 1. Hitung bobot untuk second layer
+weights_second_layer = hitung_weights(r, len(aggregation_scores_second_layer))
 
-#         d_t = tau_y / (1 - weights[j] + tau_y)
-#         factor1 = np.sqrt(np.pi) / (1 - d_t)
-#         factor2 = np.sqrt((1 - weights[j]) / weights[j])
-#         factor3 = (1 - weights[j]) ** (-(j - t_0) / 2)
-#         factor4 = gamma((j - t_0 - 1) / 2) / gamma((j - t_0) / 2)
+# 2. Hitung Vt dan Xt untuk second layer
+V_t_list_second_layer = hitung_V_t(weights_second_layer, aggregation_scores_second_layer)
+x_chi_t_second_layer = hitung_x_chi_t(weights_second_layer, aggregation_scores_second_layer)
 
-#         K_y = factor1 * factor2 * factor3 * factor4
-#         K_y_list.append(K_y)
+# 3. Hitung Ct untuk second layer
+Ct_list_second_layer = hitung_Ct(V_t_list_second_layer, aggregation_scores_second_layer, weights_second_layer)
 
-#     return tau_y_values, K_y_list
+# 4. Implementasikan Sherman-Morrison-Woodbury untuk second layer
+Vt_new_inv_list_second_layer = sherman_morrison_woodbury(V_t_list_second_layer, weights_second_layer, Ct_list_second_layer, aggregation_scores_second_layer)
 
-# # Hitung density function untuk lapisan kedua
-# tau_y_values, K_y_list = hitung_second_layer_density(y_scores, weights, t_0)
+# 5. Hitung a_t untuk second layer
+a_t_list_second_layer = [np.dot(Vt_new_inv_list_second_layer[i], x_chi_t_second_layer) for i in range(len(weights_second_layer))]
 
-# # Cetak hasil tau_y_values dan K_y_list
-# for j, (tau_y, K_y) in enumerate(zip(tau_y_values, K_y_list), start=2):
-#     print(f"Density SDNML untuk lapisan kedua pada skor y_{j}: τ̂_y = {tau_y}, K_y = {K_y}")
+# 6. Hitung tau_t untuk second layer
+tau_t_values_second_layer = hitung_tau_t(weights_second_layer, aggregation_scores_second_layer, a_t_list_second_layer)
+
+# 7. Hitung Kt untuk second layer
+# Hasil dari first layer (hasil_agregasi) digunakan sebagai dasar untuk nilai m di second layer
+K_t_list_second_layer, d_t_list_second_layer = hitung_Kt(weights_second_layer, Ct_list_second_layer, y_scores, hasil_agregasi)
+
+
+# 8. Hitung SDNML density untuk second layer
+sdnml_density_values_second_layer = hitung_density_sdnml(tau_t_values_second_layer, K_t_list_second_layer, t_0_second_layer, aggregation_scores_second_layer)
+def safe_log(array):
+    return np.log(np.maximum(array, 1e-10))
+def hitung_second_layer_scoring(sdnml_density_values, k, y_scores_first_layer):
+    y_scores_second_layer = []
+
+    for j in range(k, len(sdnml_density_values) + 1):
+        log_density_values = safe_log(sdnml_density_values[j - k:j])  # Hindari log(0)
+        y_j = (1 / k) * np.sum(log_density_values)
+
+        # Ambil jumlah_mention_agregasi dari y_scores_first_layer yang sesuai
+        jumlah_mention_agregasi = y_scores_first_layer[j - 1]["jumlah_mention_agregasi"]
+        
+        y_scores_second_layer.append({
+            "y_score": y_j,
+            "jumlah_mention_agregasi": jumlah_mention_agregasi
+        })
+
+    return np.nan_to_num(y_scores_second_layer, nan=-1e10, posinf=1e10, neginf=-1e10) 
+
+# Membuat aggregation_scores_second_layer dengan y_scores dari second layer
+aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scores])
+
+# Menghitung skor second layer dengan tambahan informasi
+y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k, y_scores)
+
+# Cetak hasil second layer scoring
+print("----- second layer scoring -----")
+for idx, y_score_info in enumerate(y_scores_second_layer, start=k):
+    print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
+        f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
+
+
+
+
+
+
