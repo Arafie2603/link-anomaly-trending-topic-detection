@@ -1,6 +1,11 @@
 import mysql.connector
 from mysql.connector import Error
-from config import Config
+from .config import Config
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
 
 def create_connection():
     connection = None
