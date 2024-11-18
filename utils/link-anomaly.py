@@ -262,7 +262,6 @@ def hitung_weights(r, n):
     Parameters:
     - r (float): Nilai bobot dasar (misalnya, tingkat diskon).
     - n (int): Jumlah elemen/agregasi yang ingin dihitung bobotnya.
-    
     Returns:
     - np.array: Array berisi nilai bobot.
     """
@@ -270,7 +269,6 @@ def hitung_weights(r, n):
         raise ValueError("Parameter r harus berada dalam rentang (0, 1).")
     if n <= 0:
         raise ValueError("Parameter n harus lebih besar dari 0.")
-    
     weights = np.array([r * (1 - r) ** i for i in range(n)])
     return weights
 
