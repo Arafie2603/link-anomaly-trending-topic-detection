@@ -1,6 +1,6 @@
 import sys
 import os
-import json
+import matplotlib.pyplot as plt
 import math
 import numpy as np
 # To support import export module
@@ -184,7 +184,7 @@ def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
 
-    window_r = timedelta(hours=4)  
+    window_r = timedelta(hours=1)  
     jumlah_diskrit = 152  
 
     waktu_akhir = waktu_awal + window_r
@@ -527,56 +527,58 @@ aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scor
 # Menghitung skor second layer dengan tambahan informasi
 y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k)
 y_scores_second_layer_values = [entry['y_score'] for entry in y_scores_second_layer]
-print(y_scores_second_layer_values)
 
+print((y_scores_second_layer_values))
 # Cetak hasil second layer scoring
 # print("----- second layer scoring -----")
 # for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
 #     print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
 #         f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
-def dynamic_threshold_optimization(scores, NH=17, rho=0.05, lambda_H=0.01, r_H=0.05):
-    # Parameter untuk a dan b
-    avg_score = np.mean(scores)
-    std_score = np.std(scores)
-    a = avg_score + 3 * std_score  # a = rata-rata + 3 sigma
-    b = np.min(scores)  # b = nilai minimum
 
-    # Inisialisasi histogram
-    q_j_1 = np.full(NH, 1 / NH)  # Distribusi seragam sebagai inisialisasi
-
-    thresholds = []
+def anomaly_detection(scores, NH=20, p=0.05, lambda_h=0.5, rh=0.0001):
+    q = np.full(NH, 1 / NH)
     alarms = []
+    thresholds = []
 
-    # DTO Loop
+    # Tentukan rentang histogram dengan data skor
+    a, b = min(scores), max(scores)
+    bins = np.linspace(a, b, NH + 1)
+
     for j, score in enumerate(scores):
-        # Threshold optimization
-        cumulative_sum = np.cumsum(q_j_1)
-        l = np.searchsorted(cumulative_sum, 1 - rho)
-        eta_j = a + ((b - a) / (NH - 2)) * (l + 1)
-        thresholds.append(eta_j)
+        h = np.digitize(score, bins) - 1  # -1 untuk indeks Python
+        h = min(max(h, 0), NH - 1)  # Lindungi indeks agar tetap dalam rentang
 
-        # Alarm output
-        if score >= eta_j:
-            alarms.append(1)  # Alarm aktif
-        else:
-            alarms.append(0)  # Tidak ada alarm
-
-        # Histogram update
-        bin_width = (b - a) / (NH - 2)
-        h = min(int((score - a) / bin_width), NH - 1) if score >= a else 0
-
-        for h_index in range(NH):
-            if h_index == h:
-                q_j_1[h_index] = (1 - r_H) * q_j_1[h_index] + r_H
+        # Update histogram
+        new_q = np.zeros_like(q)
+        for k in range(NH):
+            if k == h:
+                new_q[k] = (1 - rh) * q[k] + rh
             else:
-                q_j_1[h_index] = (1 - r_H) * q_j_1[h_index]
-        
-        # Normalisasi histogram dengan lambda_H
-        q_j_1 = (q_j_1 + lambda_H) / (np.sum(q_j_1) + NH * lambda_H)
+                new_q[k] = (1 - rh) * q[k]
 
-    return thresholds, alarms
+        normalizer = np.sum(new_q + lambda_h)
+        if normalizer == 0:
+            raise ValueError("Normalization failed: sum is zero.")
+        new_q = (new_q + lambda_h) / normalizer
+        q = new_q
 
-thresholds, alarms = dynamic_threshold_optimization(y_scores_second_layer_values)
+        # Threshold optimization
+        cumulative_prob = np.cumsum(q)
+        if np.max(cumulative_prob) < 1 - p:
+            raise ValueError(f"Threshold optimization failed: cumulative_prob < {1 - p}.")
+        threshold = bins[np.argmax(cumulative_prob >= 1 - p)]
+        thresholds.append(threshold)
+
+        # Tentukan alarm
+        if np.isnan(threshold) or np.isinf(threshold):
+            raise ValueError(f"Invalid threshold detected: {threshold}")
+        alarms.append(score >= threshold)
+
+    return alarms, thresholds
+
+
+
+thresholds, alarms = anomaly_detection(y_scores_second_layer_values)
 # Output threshold dan alarm
 print("Thresholds:", thresholds)
 print("Alarms:", alarms)
@@ -588,3 +590,17 @@ print("Alarms:", alarms)
 
 
 
+# Identifikasi indeks di mana alarm terjadi
+alarm_indices = np.where(alarms)[0]
+
+# Visualisasi ulang hasil
+plt.figure(figsize=(10, 6))
+x = np.arange(len(y_scores_second_layer_values))
+plt.plot(x, y_scores_second_layer_values, label='y_scores_second_layer_values', marker='o', linestyle='-')
+plt.axhline(np.mean(y_scores_second_layer_values), color='r', linestyle='--', label='Mean')
+plt.scatter(alarm_indices, np.array(y_scores_second_layer_values)[alarm_indices], color='red', label='Alarms', zorder=5)
+plt.xlabel('Index')
+plt.ylabel('Score')
+plt.title('Anomaly Detection Visualization')
+plt.legend()
+plt.show()
