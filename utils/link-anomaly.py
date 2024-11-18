@@ -446,7 +446,7 @@ sdnml_density_values = hitung_density_sdnml(tau_t_values, K_t_list, t_0, aggrega
 # for t, density in enumerate(sdnml_density_values, start=1):
 #     print(f"Densitas SDNML pada diskrit waktu {t + 1}: {density}")
 
-k = 15  
+k = 13
 def hitung_first_layer_scoring(sdnml_density_values, k, hasil_agregasi):
     y_scores = []  # List untuk menyimpan skor perubahan dan detail jumlah_mention_agregasi
 
@@ -526,14 +526,65 @@ aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scor
 
 # Menghitung skor second layer dengan tambahan informasi
 y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k)
+y_scores_second_layer_values = [entry['y_score'] for entry in y_scores_second_layer]
+print(y_scores_second_layer_values)
 
 # Cetak hasil second layer scoring
-print("----- second layer scoring -----")
-for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
-    print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
-        f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
+# print("----- second layer scoring -----")
+# for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
+#     print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
+#         f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
+def dynamic_threshold_optimization(scores, NH=17, rho=0.05, lambda_H=0.01, r_H=0.05):
+    # Parameter untuk a dan b
+    avg_score = np.mean(scores)
+    std_score = np.std(scores)
+    a = avg_score + 3 * std_score  # a = rata-rata + 3 sigma
+    b = np.min(scores)  # b = nilai minimum
 
+    # Inisialisasi histogram
+    q_j_1 = np.full(NH, 1 / NH)  # Distribusi seragam sebagai inisialisasi
 
+    thresholds = []
+    alarms = []
+
+    # DTO Loop
+    for j, score in enumerate(scores):
+        # Threshold optimization
+        cumulative_sum = np.cumsum(q_j_1)
+        l = np.searchsorted(cumulative_sum, 1 - rho)
+        eta_j = a + ((b - a) / (NH - 2)) * (l + 1)
+        thresholds.append(eta_j)
+
+        # Alarm output
+        if score >= eta_j:
+            alarms.append(1)  # Alarm aktif
+        else:
+            alarms.append(0)  # Tidak ada alarm
+
+        # Histogram update
+        bin_width = (b - a) / (NH - 2)
+        h = min(int((score - a) / bin_width), NH - 1) if score >= a else 0
+
+        for h_index in range(NH):
+            if h_index == h:
+                q_j_1[h_index] = (1 - r_H) * q_j_1[h_index] + r_H
+            else:
+                q_j_1[h_index] = (1 - r_H) * q_j_1[h_index]
+        
+        # Normalisasi histogram dengan lambda_H
+        q_j_1 = (q_j_1 + lambda_H) / (np.sum(q_j_1) + NH * lambda_H)
+
+    return thresholds, alarms
+
+thresholds, alarms = dynamic_threshold_optimization(y_scores_second_layer_values)
+# Output threshold dan alarm
+print("Thresholds:", thresholds)
+print("Alarms:", alarms)
+# Output threshold dan alarm
+# print("Min y_scores_second_layer:", np.min(y_scores_second_layer_values))
+# print("Max y_scores_second_layer_values:", np.max(y_scores_second_layer_values))
+# print("Average y_scores_second_layer_values:", np.mean(y_scores_second_layer_values))
+# print("Std deviation y_scores_second_layer_values:", np.std(y_scores_second_layer_values))
 
 
 
