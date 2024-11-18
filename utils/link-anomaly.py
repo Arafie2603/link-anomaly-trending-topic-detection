@@ -248,7 +248,7 @@ inverse_matrix = variabel yang digunakan untuk menyimpan hasil perhitungan inver
 """
 
 # Inisialisasi variabel
-r = 0.05
+r = 0.005
 
 aggregation_scores = np.array([entry["s_x"] for entry in hasil_agregasi])
 
@@ -476,8 +476,28 @@ for idx, y_score_info in enumerate(y_scores, start=k):
 
 # Gunakan output dari first layer scoring (y_scores) sebagai input untuk second layer
 
+def hitung_second_layer_scoring(sdnml_density_values, k):
+    y_scores_second_layer = []
+    
+    # Mulai dari indeks dinamis berdasarkan nilai k
+    start_index = 2 * k
+
+    # Hitung skor perubahan pada second layer scoring
+    for j in range(start_index, len(sdnml_density_values) + 1):
+        log_density_values = np.log(sdnml_density_values[j - k:j])
+        y_j = (1 / k) * np.sum(log_density_values)
+        y_scores_second_layer.append({
+            "y_score": y_j,
+            "jumlah_mention_agregasi": hasil_agregasi[j - 1]["jumlah_mention_agregasi"]  # Mengambil data jumlah_mention dari hasil_agregasi
+        })
+
+    return y_scores_second_layer
+
+
+# Menentukan aggregation_scores_second_layer dengan data hasil dari y_scores pada first layer
 aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scores])
 t_0_second_layer = aggregation_scores_second_layer[0]
+
 # 1. Hitung bobot untuk second layer
 weights_second_layer = hitung_weights(r, len(aggregation_scores_second_layer))
 
@@ -498,43 +518,22 @@ a_t_list_second_layer = [np.dot(Vt_new_inv_list_second_layer[i], x_chi_t_second_
 tau_t_values_second_layer = hitung_tau_t(weights_second_layer, aggregation_scores_second_layer, a_t_list_second_layer)
 
 # 7. Hitung Kt untuk second layer
-# Hasil dari first layer (hasil_agregasi) digunakan sebagai dasar untuk nilai m di second layer
 K_t_list_second_layer, d_t_list_second_layer = hitung_Kt(weights_second_layer, Ct_list_second_layer, y_scores, hasil_agregasi)
-
 
 # 8. Hitung SDNML density untuk second layer
 sdnml_density_values_second_layer = hitung_density_sdnml(tau_t_values_second_layer, K_t_list_second_layer, t_0_second_layer, aggregation_scores_second_layer)
-def safe_log(array):
-    return np.log(np.maximum(array, 1e-10))
-def hitung_second_layer_scoring(sdnml_density_values, k, y_scores_first_layer):
-    y_scores_second_layer = []
-
-    for j in range(k, len(sdnml_density_values) + 1):
-        log_density_values = safe_log(sdnml_density_values[j - k:j])  # Hindari log(0)
-        y_j = (1 / k) * np.sum(log_density_values)
-
-        # Ambil jumlah_mention_agregasi dari y_scores_first_layer yang sesuai
-        jumlah_mention_agregasi = y_scores_first_layer[j - 1]["jumlah_mention_agregasi"]
-        
-        y_scores_second_layer.append({
-            "y_score": y_j,
-            "jumlah_mention_agregasi": jumlah_mention_agregasi
-        })
-
-    return np.nan_to_num(y_scores_second_layer, nan=-1e10, posinf=1e10, neginf=-1e10) 
 
 # Membuat aggregation_scores_second_layer dengan y_scores dari second layer
 aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scores])
 
 # Menghitung skor second layer dengan tambahan informasi
-y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k, y_scores)
+y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k)
 
 # Cetak hasil second layer scoring
 print("----- second layer scoring -----")
-for idx, y_score_info in enumerate(y_scores_second_layer, start=k):
+for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
     print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
         f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
-
 
 
 
