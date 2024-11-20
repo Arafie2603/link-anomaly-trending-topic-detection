@@ -2,7 +2,12 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import math
+import json
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import pandas as pd
 import numpy as np
+from collections import defaultdict
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
@@ -184,8 +189,8 @@ def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
 
-    window_r = timedelta(hours=1)  
-    jumlah_diskrit = 152  
+    window_r = timedelta(hours=24)  
+    jumlah_diskrit = 120  
 
     waktu_akhir = waktu_awal + window_r
 
@@ -220,7 +225,7 @@ def hitung_skor_agregasi(hasil_skor):
     return hasil_agregasi
 
 hasil_skor_agregasi = hitung_skor_agregasi(hasil_perhitungan)
-# print(json.dumps(hasil_agregasi, indent=4))
+print(json.dumps(hasil_agregasi, indent=4))
 # print(hasil_agregasi)
 
 
@@ -446,7 +451,7 @@ sdnml_density_values = hitung_density_sdnml(tau_t_values, K_t_list, t_0, aggrega
 # for t, density in enumerate(sdnml_density_values, start=1):
 #     print(f"Densitas SDNML pada diskrit waktu {t + 1}: {density}")
 
-k = 13
+k = 5
 def hitung_first_layer_scoring(sdnml_density_values, k, hasil_agregasi):
     y_scores = []  # List untuk menyimpan skor perubahan dan detail jumlah_mention_agregasi
 
@@ -460,6 +465,7 @@ def hitung_first_layer_scoring(sdnml_density_values, k, hasil_agregasi):
         y_scores.append({
             "y_score": y_j,
             "jumlah_mention_agregasi": agregasi_info["jumlah_mention_agregasi"]
+
         })
 
     return y_scores
@@ -524,29 +530,38 @@ sdnml_density_values_second_layer = hitung_density_sdnml(tau_t_values_second_lay
 # Membuat aggregation_scores_second_layer dengan y_scores dari second layer
 aggregation_scores_second_layer = np.array([entry["y_score"] for entry in y_scores])
 
-# Menghitung skor second layer dengan tambahan informasi
 y_scores_second_layer = hitung_second_layer_scoring(sdnml_density_values_second_layer, k)
 y_scores_second_layer_values = [entry['y_score'] for entry in y_scores_second_layer]
 
 print((y_scores_second_layer_values))
 # Cetak hasil second layer scoring
-# print("----- second layer scoring -----")
-# for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
-#     print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
-#         f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
+print("----- second layer scoring -----")
+for idx, y_score_info in enumerate(y_scores_second_layer, start=2 * k):
+    print(f"Skor perubahan titik awal y_{idx}: {y_score_info['y_score']}, "
+        f"Jumlah Mention Agregasi: {y_score_info['jumlah_mention_agregasi']}")
 
-def anomaly_detection(scores, NH=20, p=0.05, lambda_h=0.5, rh=0.0001):
-    q = np.full(NH, 1 / NH)
+def anomaly_detection(scores, y_scores_second_layer, hasil_agregasi, NH=20, p=0.05, lambda_h=0.01, rh=0.005):
+    q = np.full(NH, 1 / NH) 
     alarms = []
     thresholds = []
+    results = []
 
-    # Tentukan rentang histogram dengan data skor
-    a, b = min(scores), max(scores)
+    # Tentukan rentang histogram berdasarkan skor
+    a, b = np.min(scores), np.max(scores)
     bins = np.linspace(a, b, NH + 1)
 
-    for j, score in enumerate(scores):
-        h = np.digitize(score, bins) - 1  # -1 untuk indeks Python
-        h = min(max(h, 0), NH - 1)  # Lindungi indeks agar tetap dalam rentang
+    for y_data in y_scores_second_layer:
+        score = y_data["y_score"]
+        diskrit_y = y_data["jumlah_mention_agregasi"]  
+
+        # Cari diskrit yang sesuai di hasil_agregasi
+        agregasi_data = next((item for item in hasil_agregasi if item["jumlah_mention_agregasi"] == diskrit_y), None)
+
+        if not agregasi_data:
+            raise ValueError(f"Diskrit {diskrit_y} tidak ditemukan dalam hasil_agregasi.")
+
+        h = np.digitize(score, bins) - 1  
+        h = min(max(h, 0), NH - 1)  
 
         # Update histogram
         new_q = np.zeros_like(q)
@@ -557,50 +572,84 @@ def anomaly_detection(scores, NH=20, p=0.05, lambda_h=0.5, rh=0.0001):
                 new_q[k] = (1 - rh) * q[k]
 
         normalizer = np.sum(new_q + lambda_h)
-        if normalizer == 0:
-            raise ValueError("Normalization failed: sum is zero.")
         new_q = (new_q + lambda_h) / normalizer
         q = new_q
 
         # Threshold optimization
         cumulative_prob = np.cumsum(q)
-        if np.max(cumulative_prob) < 1 - p:
-            raise ValueError(f"Threshold optimization failed: cumulative_prob < {1 - p}.")
         threshold = bins[np.argmax(cumulative_prob >= 1 - p)]
         thresholds.append(threshold)
 
-        # Tentukan alarm
-        if np.isnan(threshold) or np.isinf(threshold):
-            raise ValueError(f"Invalid threshold detected: {threshold}")
-        alarms.append(score >= threshold)
-
-    return alarms, thresholds
+        # Alarm output
+        alarm = bool(score >= threshold)  # Pastikan tipe bool Python biasa
+        alarms.append(alarm)
 
 
+        # Tambahkan hasil diskrit
+        results.append({
+            "diskrit": agregasi_data["diskrit"],
+            "waktu_awal": agregasi_data["waktu_awal"],
+            "waktu_akhir": agregasi_data["waktu_akhir"],
+            "jumlah_mention_agregasi": agregasi_data["jumlah_mention_agregasi"],
+            "y_score": score,
+            "threshold": threshold,
+            "alarm": alarm
+        })
 
-thresholds, alarms = anomaly_detection(y_scores_second_layer_values)
-# Output threshold dan alarm
-print("Thresholds:", thresholds)
-print("Alarms:", alarms)
-# Output threshold dan alarm
-# print("Min y_scores_second_layer:", np.min(y_scores_second_layer_values))
-# print("Max y_scores_second_layer_values:", np.max(y_scores_second_layer_values))
-# print("Average y_scores_second_layer_values:", np.mean(y_scores_second_layer_values))
-# print("Std deviation y_scores_second_layer_values:", np.std(y_scores_second_layer_values))
+    return results, alarms, thresholds
 
 
 
-# Identifikasi indeks di mana alarm terjadi
-alarm_indices = np.where(alarms)[0]
 
-# Visualisasi ulang hasil
-plt.figure(figsize=(10, 6))
-x = np.arange(len(y_scores_second_layer_values))
-plt.plot(x, y_scores_second_layer_values, label='y_scores_second_layer_values', marker='o', linestyle='-')
-plt.axhline(np.mean(y_scores_second_layer_values), color='r', linestyle='--', label='Mean')
-plt.scatter(alarm_indices, np.array(y_scores_second_layer_values)[alarm_indices], color='red', label='Alarms', zorder=5)
-plt.xlabel('Index')
-plt.ylabel('Score')
-plt.title('Anomaly Detection Visualization')
-plt.legend()
-plt.show()
+# Panggil anomaly_detection
+results, alarms, thresholds = anomaly_detection(
+    scores=y_scores_second_layer_values,
+    y_scores_second_layer=y_scores_second_layer,
+    hasil_agregasi=hasil_agregasi
+)
+
+print(f"threshold = {alarms}")
+
+print(json.dumps(results, indent=4))
+
+
+def validate_results(results):
+    # Validasi diskrit tunggal
+    grouped_results = defaultdict(list)
+    for result in results:
+        grouped_results[result["diskrit"]].append(result)
+
+    diskrit_validation = {}
+    threshold_validation = {}
+
+    for diskrit, entries in grouped_results.items():
+        # Periksa apakah ada lebih dari satu nilai alarm
+        unique_alarms = set(entry["alarm"] for entry in entries)
+        diskrit_validation[diskrit] = {
+            "multiple_alarms": len(unique_alarms) > 1,
+            "alarms": unique_alarms
+        }
+
+        # Periksa apakah threshold konsisten
+        unique_thresholds = set(entry["threshold"] for entry in entries)
+        threshold_validation[diskrit] = {
+            "consistent_threshold": len(unique_thresholds) == 1,
+            "thresholds": unique_thresholds
+        }
+
+    return {
+        "diskrit_validation": diskrit_validation,
+        "threshold_validation": threshold_validation
+    }
+
+# Validasi hasil
+validation_results = validate_results(results)
+
+# Tampilkan hasil validasi
+print("Validasi Diskrit Tunggal:")
+for diskrit, info in validation_results["diskrit_validation"].items():
+    print(f"Diskrit {diskrit}: Multiple Alarms? {info['multiple_alarms']}, Alarms: {info['alarms']}")
+
+print("\nValidasi Akurasi DTO:")
+for diskrit, info in validation_results["threshold_validation"].items():
+    print(f"Diskrit {diskrit}: Consistent Threshold? {info['consistent_threshold']}, Thresholds: {info['thresholds']}")
