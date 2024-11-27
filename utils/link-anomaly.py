@@ -116,34 +116,53 @@ hasil_mention = hitung_probabilitas_mention(tweets_data)
 # ---------- Tahap 2: Hitung Probablitas Mention User ----------
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
 
+print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
 def hitung_mention_tiap_id(target_id, tweets_data):
-    temp_mentions = []
-    m = 0
-    y = 0.5
-    pmention = 0
+    temp_mentions = []  # List untuk menyimpan semua mention yang pernah muncul
+    temp_pmention = []
+    m = 0  # Total mention dalam dataset
+    y = 0.5  # Parameter y
+    pmention = 0  # Probabilitas mention
 
     for tweet in tweets_data:
         mentions = tweet['mentions']
         temp_m = tweet['jumlah_mention']
-        m += temp_m
+        m += temp_m  # Tambahkan jumlah mention dalam tweet ke total mention
 
-        if isinstance(mentions, str):  
-            mentions_list = mentions.split(', ')  
+        # Pisahkan mention jika berbentuk string
+        if isinstance(mentions, str):
+            mentions_list = mentions.split(',')
         else:
-            mentions_list = mentions  
+            mentions_list = mentions
+
+        # Jika ID tweet cocok dengan target_id, hitung probabilitasnya
+        if tweet['id'] == target_id:
+            if tweet['jumlah_mention']>1:
+                for i in range((tweet['jumlah_mention'])):
+                    mu = temp_mentions.count(i)
+                    if mu == 0:
+                        p = y / (m + y)
+                        temp_pmention.append(p)
+                    else:
+                        p += mu / (m+y)
+                        temp_pmention.append(p)
+                # print(temp_pmention)
+                pmention = sum(temp_pmention)
+                temp_pmention.clear()
+                print(f"pemntion {tweet['id']} = {pmention}")
+            else :
+                mu = temp_mentions.count(tweet['mentions'])
+                if mu == 0:  # Mention pertama kali
+                    pmention += y / (m + y)
+                    print(f"Probabilitas {tweet['id']}: {pmention:.4f}")
+                else:  # Mention sudah muncul sebelumnya
+                    pmention += mu / (m + y)
+                    print(f"Probabilitas {tweet['id']}: {pmention:.4f}")
+
+        # Tambahkan mention baru ke `temp_mentions` setelah memproses tweet ini
         temp_mentions.extend(mentions_list)
 
-        if tweet['id'] == target_id:
-            if tweet['jumlah_mention'] > 1:
-                for i in mentions_list:  
-                    mu = temp_mentions.count(i)
-                    pmention += mu / (m + y)
-            else:
-                mention_string = ', '.join(mentions_list)
-                mu = temp_mentions.count(mention_string)
-                pmention += mu / (m + y)
-    
-    return pmention  
+    return pmention
 
 def hitung_probabilitas_user(tweets):
     for row in tweets:
@@ -155,7 +174,7 @@ def hitung_probabilitas_user(tweets):
     return hasil_perhitungan
 
 hasil_probabilitas_user = hitung_probabilitas_user(tweets_data)
-hasil_filtered_user = [hasil for hasil in hasil_probabilitas_user if 1 <= hasil["id"] <= 100]
+# hasil_filtered_user = [hasil for hasil in hasil_probabilitas_user if 1 <= hasil["id"] <= 100]
 
 # Cetak hasil probabilitas mention user untuk ID 1-100
 # for hasil in hasil_filtered_user:
