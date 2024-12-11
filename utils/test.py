@@ -190,8 +190,6 @@ hitung_skor_anomaly(hasil_perhitungan)
 
 
 hasil_agregasi = []
-
-print('---------- Hitung Skor Agregasi ----------')
 def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
@@ -234,9 +232,6 @@ def hitung_skor_agregasi(hasil_skor):
 hasil_skor_agregasi = hitung_skor_agregasi(hasil_perhitungan)
 # print(json.dumps(hasil_agregasi, indent=4))
 # print(hasil_agregasi)
-
-
-
 # ========================== IMPLEMENTASI SDNML ==========================
 
 """
@@ -270,63 +265,68 @@ def create_X_t(x_t, order):
 order = 3  # Misalkan menggunakan AR(2)
 m = order
 X_t = create_X_t(x_t, order=order)
-print(f"Nilai x_t = {X_t}")
+print(f"Nilai x_bar_t = {X_t}")
 
 # Inisialisasi matriks V0 dan M0
 V0 = np.identity(order)
 M0 = np.zeros(order)
-print(M0)
+# print(M0)
 # Fungsi untuk memperbarui V_t dan M_t dengan identitas Sherman-Morrison-Woodbury
 def update_matrices(V_prev_inv, M_prev, x_t, xt):
     x_t = x_t[:, np.newaxis] 
     c_t = r * x_t.T @ V_prev_inv @ x_t
     V_t = (1 / (1 - r)) * V_prev_inv - (r / (1 - r)) * (V_prev_inv @ np.outer(x_t, x_t) @ V_prev_inv) / (1 - r + c_t)
     M_t = (1 - r) * M_prev + r * x_t.flatten() * xt
-    print(f"--- perhitungan Vt ---")
-    # print(f"{r} * {x_t.T} * {V_prev_inv} * {x_t} = {c_t}")
-    # print(f"{V_t}")
-    # print(f"(1 / {r}) * np.linalg.inv({V_t_inv}) = {np.linalg.inv(V_t_inv)}")
-    print("----------")
+    # print(M_t)
+    # print(V_t)
+    # print(f"--- perhitungan Vt ---")
+    # print("----------")
     # print("\n")
-    return V_t, M_t
+    return V_t, M_t, c_t.item()
 
 V_inv = V0
 # print(V_inv)
 M = M0
+d_t = []
 
-# Perbarui V_t dan M_t untuk setiap waktu t
+
 for t in range(len(X_t)):
-    V_inv, M = update_matrices(V_inv, M, X_t[t], x_t[t + order])
+    V_inv, M, c_t = update_matrices(V_inv, M, X_t[t], x_t[t + order])
+    d_t_value = c_t / (1 - r + c_t)  
+    d_t.append(d_t_value)
     # print(V_inv)
 
-# Hitung invers dari V_inv untuk mendapatkan V_t
 V = V_inv
 
-# Hitung parameter estimasi A_t
 A_t = np.dot(V, M)
-print(f"nilai a_t = {A_t}")
+# print(A_t)
 
+# print(d_t)
 # Hitung residuals (sisa) e_t
 e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
-
-# Hitung estimasi varians tau_t
+# print(e_t)
 tau_t = [(1 / (i + 1 - m)) * sum([e_t[j]**2 for j in range(m, i + 1)]) for i in range(m, len(e_t))]
+# print(tau_t)
+s_t = [(t - m) * tau_t[i] for i in range(m, len(tau_t))]
+# print("--- s_t ---")
+# print(s_t)
+# print(s_t)
+K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((t - m - 1) / 2) / gamma((t - m) / 2) for i in range(m, len(d_t) - 1)]
+# print("--- K_t ---")
+# print(K_t)
+p_SDNML = [K_t[i]**-1 * x_t[i - 1] * (s_t[i]**(-(t - m) / 2) / s_t[i - 1]**(-(t - m - 1) / 2)) for i in range(1, len(s_t))]
+# print(p_SDNML)
+# print(f"{K_t[1]**-1 * x_t[1 - 1]}")
+# print(K_t[1]**-1 * x_t[1 - 1] * (s_t[1]**(-(t - m) / 2) / s_t[1 - 1]**(-(t - m - 1) / 2)))
 
-d_t = [r * np.dot(X_t[i].T, np.dot(V, X_t[i])) for i in range(len(X_t))]
-
-s_t = [(t - m) * tau_t[i] for i in range(len(tau_t))]
-
-# Hitung faktor normalisasi K_t
-K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i + 1 - m - 1) / 2) / gamma((i + 1 - m) / 2) for i in range(len(d_t))]
-
-# Hitung fungsi kepadatan SDNML
-p_SDNML = [K_t[i]**-1 * (s_t[i - m]**(-(i + 1 - m) / 2) / s_t[i - m - 1]**(-(i + 1 - m - 1) / 2)) for i in range(m, len(s_t) + m)]
-
-# Hitung panjang kode SDNML
-# Tambahkan nilai kecil (misalnya 1e-10) untuk menghindari log(0)
 epsilon = 1e-10
-log_p_SDNML = [-np.log(p_SDNML[i - m] + epsilon) for i in range(m, len(p_SDNML) + m)]
-
+log_p_SDNML = [
+    -np.log(p_SDNML[i]) if p_SDNML[i - m] == 0 else -np.log(p_SDNML[i]) 
+    for i in range(len(p_SDNML))
+]
+print("--- uji debug ---")
+print(f"-np.log({p_SDNML[0]}) = { -np.log(p_SDNML[0])}")
+print(log_p_SDNML)
 # Tambahkan informasi log_psdnml ke hasil agregasi
 for i in range(m, len(log_p_SDNML) + m):
     hasil_agregasi[i]["log_psdnml"] = log_p_SDNML[i - m]
@@ -358,7 +358,7 @@ for t in range(m, len(x_t)):
 # for t in range(len(first_scores)):
 #     print(f"First Score untuk x_{t + m + 1}: {first_scores[t]}")
 # Contoh penggunaan untuk pertama kalinya:
-T = 7  # Misalnya jendela waktu adalah 5
+T = 5  # Misalnya jendela waktu adalah 5
 smoothed_scores = apply_smoothing(first_scores, T)
 
 # Cetak hasil smoothing
@@ -366,47 +366,37 @@ smoothed_scores = apply_smoothing(first_scores, T)
 #     print(f"Smoothed Score untuk x_{t + T}: {smoothed_scores[t]}")
 # new_order = 1
 X_t_second = create_X_t(smoothed_scores, order=order)
-# print(len(x_t_second))
-# print(x_t_second)
-# Inisialisasi matriks V0 dan M0
 V0_second = np.identity(order)
 M0_second = np.zeros(order)
 
-# Inisialisasi V_inv dan M
 V_inv_second = V0_second
 M_second = M0_second
-# X_t[t], x_t[t + order]
-# Perbarui V_t dan M_t untuk setiap waktu t
-# print(len(x_t_second))
 
+d_t_second = []
 for t in range(len(X_t_second) - order):
-    V_inv, M = update_matrices(V_inv_second, M_second, X_t_second[t], X_t_second[t + order])
-V_second = np.linalg.inv(V_inv)
+    V_inv_second, M_second, c_t_second = update_matrices(V_inv_second, M_second, X_t_second[t], X_t_second[t + order])
+    d_t_value = c_t / (1 - r + c_t)
+    d_t_second.append(d_t_value)
 
-A_t_second = np.dot(V_second, M_second)
+A_t_second = np.dot(V_inv_second, M_second)
 
-# print("Parameter estimasi A_t:", A_t_second)
-
-
-# Hitung residuals (sisa) e_t
 e_t_second = [X_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second) - order)]
 
-# Hitung estimasi varians tau_t
+
 tau_t_second = [(1 / (i + 1 - m)) * sum([e_t_second[j]**2 for j in range(m, i + 1)]) for i in range(m, len(e_t_second))]
 
-s_t_second = [(t - m) * tau_t_second[i] for i in range(len(tau_t_second))]
+s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, len(tau_t_second))]
 
+K_t_second = [np.sqrt(np.pi) / (1 - d_t[i]) * x_t[i - 1] * gamma((i + 1 - m - 1) / 2) / gamma((i + 1 - m) / 2) for i in range(len(d_t_second))]
 
-d_t_second = [r * np.dot(X_t_second[i].T, np.dot(V, X_t_second[i])) for i in range(len(X_t_second))]
-K_t_second = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i + 1 - m - 1) / 2) / gamma((i + 1 - m) / 2) for i in range(len(d_t_second))]
+p_SDNML_second = [K_t_second[i]**-1 * x_t[i - 1] * (s_t[i - m]**(-(i + 1 - m) / 2) / s_t[i - m - 1]**(-(i + 1 - m - 1) / 2)) for i in range(m, len(s_t_second) + m)]
 
-p_SDNML_second = [K_t_second[i]**-1 * (s_t[i - m]**(-(i + 1 - m) / 2) / s_t[i - m - 1]**(-(i + 1 - m - 1) / 2)) if i > m else 1 for i in range(m, len(s_t_second) + m)]
+log_p_SDNML_second = [-np.log(p_SDNML_second[i - m] + epsilon) for i in range(m, len(p_SDNML_second) + m)]
 
-log_p_SDNML_second = [-np.log(p_SDNML_second[i - m]) for i in range(m, len(p_SDNML_second) + m)]
 for i in range(m, len(log_p_SDNML_second) + m):
     hasil_agregasi[i]["log_psdnml_second"] = log_p_SDNML_second[i - m]
-# smoothed_scores = apply_smoothing(first_scores, T)
 print(f"---second scores ---")
+
 second_scores = []
 for t in range(m, len(X_t_second)):
     if t - m < len(log_p_SDNML_second):
@@ -425,6 +415,7 @@ def initialize_bins(scores, NH=20):
     bins: The edges of the histogram bins.
     """
     a = np.mean(scores) + 3 * np.std(scores)  # Average + 3σ
+    # print(f"")
     b = np.min(scores)  # Minimum of the data
     bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
     return bin_edges, a, b
@@ -451,7 +442,7 @@ def update_histogram(histogram, bins, score, r_H=0.001, lambda_H=0.5):
     Returns:
     updated_histogram: The updated histogram.
     """
-    bin_index = np.digitize(score, bins) - 1  # `-1` to make it 0-indexed
+    bin_index = np.digitize(score, bins) - 1 
     updated_histogram = (1 - r_H) * histogram
     updated_histogram[bin_index] += r_H
     updated_histogram = (updated_histogram + lambda_H) / np.sum(updated_histogram + lambda_H)
@@ -507,7 +498,8 @@ for i, result in enumerate(results):
         "Threshold": result['Threshold']
     })
 # print(json.dumps(hasil_agregasi, indent=4))
-
+print(second_scores)
+print(f"std = {np.std(second_scores)}")
 
 # # Menampilkan hasil agregasi yang memiliki alarm
 # print("--- Hasil Agregasi dengan Alarm ---")
