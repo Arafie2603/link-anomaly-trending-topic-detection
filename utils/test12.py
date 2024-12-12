@@ -7,14 +7,6 @@ second_scores = [23.025850929940457, -6.398336724694618, -6.362778510083174,
                  -6.902605915476471, -6.185877679866674, -6.449303053142949, 
                  -6.584217998410003]
 def initialize_bins(scores, NH=20):
-    """
-    Initialize histogram bins.
-    Parameters:
-    scores: List or array of scores (input data).
-    NH: Number of bins in the histogram.
-    Returns:
-    bins: The edges of the histogram bins.
-    """
     a = np.mean(scores) + 3 * np.std(scores)  # Average + 3σ
     # print(f"")
     b = np.min(scores)  # Minimum of the data
@@ -23,19 +15,9 @@ def initialize_bins(scores, NH=20):
     return bin_edges, a, b
 
 def initialize_histogram(NH=20):
-    """
-    Initialize a uniform histogram.
-    Parameters:
-    NH: Number of bins in the histogram.
-    Returns:
-    histogram: A uniform histogram array.
-    """
     return np.ones(NH) / NH
 
 def update_histogram(histogram, bins, score, r_H=0.001, lambda_H=0.5):
-    """
-    Update histogram mengikuti algoritma DTO lebih ketat
-    """
     # print(f"bins = {bins}")
     # print(f"score = {score}")
     bin_index = np.digitize(score, bins) - 1
@@ -63,31 +45,14 @@ def update_histogram(histogram, bins, score, r_H=0.001, lambda_H=0.5):
     return updated_histogram
 
 def optimize_threshold(histogram, bins, rho=0.05):
-    """
-    Optimize the threshold based on the histogram.
-    Parameters:
-    histogram: Current histogram.
-    bins: Bin edges of the histogram.
-    rho: Tail probability threshold.
-    Returns:
-    threshold: The optimized threshold for anomaly detection.
-    """
     cumulative_distribution = np.cumsum(histogram)
     threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
+    print(histogram)
+    print(f"cumula_distri = {cumulative_distribution}")
+    print(f"thres index = {threshold_index}")
     return bins[threshold_index]
 
 def process_session(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
-    """
-    Process all sessions and calculate alarms and thresholds.
-    Parameters:
-    scores: List or array of anomaly scores.
-    NH: Number of bins in the histogram.
-    rho: Tail probability threshold.
-    r_H: Discounting factor.
-    lambda_H: Regularization parameter for smoothing.
-    Returns:
-    results: List of dictionaries containing session details.
-    """
     bins, a, b = initialize_bins(scores, NH)
     histogram = initialize_histogram(NH)
     # print(histogram)

@@ -858,7 +858,6 @@ pgang	pegang
 pgi	pergi
 pi	tapi
 pijetin	pijitkan
-pilkada	pemilihan kepala daerah
 pimpro	pemimpin proyek
 pisan	sangat
 pisgor	pisang goreng
@@ -1295,7 +1294,7 @@ irit	hemat
 tak	tidak
 semau	asal
 mbual	bual
-mantabss bagus	
+mantabss	bagus
 penertiban	tertib
 orange	oranye
 uasai	kuasa
@@ -1317,4 +1316,36 @@ benarjujur	benar
 benarjujur	jujur
 sayan	sayang
 mgkin	mungkin
+vs	lawan
+versus	lawan
+v	lawan
+pemilihan kepala daerah langsung 	pilkada
+pilih kepala daerah 	pilkada
+pilih kepala daerah	pilkada
+pilihannya kepala daerah 	pilkada
+memilih kepala daerah	pilkada
+pemilihannya kepala daerah	pilkada
+pilkada langsung	pilkada
+kepala daerah dipilih langsung	pilkada
+pemilihan gubernur bupati wali kota	pilkada
+pemilihan pemimpin daerah	pilkada
+pilkada serentak	pilkada
+serentak kepala daerah	pilkada
+pemimpin daerah dipilih	pilkada
+pilkada 2024 	pilkada
+pemilih kepala daerah langsung	pilkada
+calon kepala daerah	pilkada
+pilkada calon daerah	pilkada
+kandidat kepala daerah	pilkada
+pencalonan kepala daerah	pilkada
+penentuan kepala daerah	pilkada
+hajatan pilkada	pilkada
+pesta demokrasi daerah	pilkada
+pemilu daerah	pilkada
+kompetisi kepala daerah	pilkada
+pemilihan pemimpin lokal 	pilkada
+pemilu lokal	pilkada
+kpu	kpud
+bujer	buzzer
+pasang calon	paslon
 ta	iya

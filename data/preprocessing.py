@@ -39,27 +39,39 @@ class DatabaseConfig:
 def load_slangwords(connection):
     cursor = connection.cursor(dictionary=True)
     cursor.execute("SELECT kata_tidak_baku, kata_baku FROM slangwords;")
-    slangwords = {row['kata_tidak_baku']: row['kata_baku'] for row in cursor.fetchall()}
+    slangwords = {row['kata_tidak_baku'].strip(): row['kata_baku'].strip() for row in cursor.fetchall()}
     cursor.close()
+    logger.info(f"Loaded {len(slangwords)} slangwords.")
     return slangwords
 
 # 1. Fungsi Case Folding
 def case_folding(text):
     return text.lower()
 
-# 2. Fungsi Cleansing (gabungkan semua langkah regex untuk efisiensi)
+# 2. Fungsi Cleansing
 def cleansing(text):
     text = re.sub(r'http\S+|www\S+|https\S+|@\w+|#\w+|[^a-zA-Z\s]', ' ', text)  # Hapus URL, mention, hashtag, dan non-alfabet
     return re.sub(r'\s+', ' ', text).strip()  # Hapus spasi berlebih
 
 # 3. Fungsi Slangwords Replacement
 def replace_slangwords(text, slangwords_dict):
-    words = text.split()
-    return ' '.join([slangwords_dict.get(word, word) for word in words])
+    original_text = text
+    # Urutkan slangwords berdasarkan panjang frasa secara menurun
+    sorted_slangs = sorted(slangwords_dict.keys(), key=lambda x: len(x), reverse=True)
+    for slang in sorted_slangs:
+        replacement = slangwords_dict[slang]
+        escaped_slang = re.escape(slang)
+        text = re.sub(rf'\b{escaped_slang}\b', replacement, text, flags=re.IGNORECASE)
+    if original_text != text:
+        logger.info(f"Original: {original_text}")
+        logger.info(f"Replaced: {text}")
+    return text
 
 # 4. Fungsi Stopword Removal
 def remove_stopwords(text, stopwords):
     words = text.split()
+    removed_words = [word for word in words if word in stopwords]
+    logger.info(f"Removed stopwords: {removed_words}")
     return ' '.join([word for word in words if word not in stopwords])
 
 # 5. Fungsi Stemming
@@ -77,30 +89,49 @@ def preprocess_text(full_text, slangwords_dict, stopwords, stemmer):
     return full_text
 
 # Fungsi utama untuk preprocessing data batch dan menyimpannya dalam satu commit
-def process_data_batch(connection, slangwords_dict, stopwords, stemmer):
+def process_data_batch(connection, slangwords_dict, stopwords, stemmer, batch_size=1000):
     cursor = connection.cursor(dictionary=True)
+    offset = 0  # Mulai dari offset 0
+    total_updated = 0  # Hitung total data yang diperbarui
 
     try:
-        # Ambil semua data yang ingin dibersihkan sekaligus
-        cursor.execute("SELECT created_at, username, full_text FROM data_preprocessed;")
-        rows = cursor.fetchall()
+        while True:
+            # Ambil batch data
+            cursor.execute("""
+                SELECT created_at, username, full_text 
+                FROM data_preprocessed 
+                LIMIT %s OFFSET %s
+            """, (batch_size, offset))
+            rows = cursor.fetchall()
 
-        # Proses setiap baris di memori
-        updated_data = []
-        for row in rows:
-            full_text = row['full_text']
-            processed_text = preprocess_text(full_text, slangwords_dict, stopwords, stemmer)
-            updated_data.append((processed_text, row['created_at'], row['username']))
+            # Hentikan jika tidak ada data lagi
+            if not rows:
+                break
 
-        # Update database dalam satu batch
-        cursor.executemany("""
-            UPDATE data_preprocessed
-            SET full_text = %s
-            WHERE created_at = %s AND username = %s
-        """, updated_data)
+            updated_data = []
+            for row in rows:
+                full_text = row['full_text']
+                # Jalankan preprocessing
+                processed_text = preprocess_text(full_text, slangwords_dict, stopwords, stemmer)
+                updated_data.append((processed_text, row['created_at'], row['username']))
 
-        connection.commit()
-        logger.info("Preprocessing dan update batch berhasil dilakukan pada kolom full_text.")
+            # Update batch ke database
+            cursor.executemany("""
+                UPDATE data_preprocessed
+                SET full_text = %s
+                WHERE created_at = %s AND username = %s
+            """, updated_data)
+
+            # Commit perubahan
+            connection.commit()
+
+            # Logging per batch
+            logger.info(f"Processed batch with offset {offset}. Updated {len(rows)} rows.")
+            total_updated += len(rows)
+            offset += batch_size
+
+        logger.info(f"Preprocessing selesai. Total data yang diperbarui: {total_updated}")
+
     except mysql.connector.Error as err:
         logger.error(f"Error saat melakukan preprocessing: {err}")
     finally:
