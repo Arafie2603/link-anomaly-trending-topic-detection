@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Import Data</h1>
+    </div>
+    <div class="mb-4">
+        <button class="btn btn-primary" onclick="openImportModal();">Import Data</button>
+    </div>
+
+    <div class="modal fade" id="importDataModal" tabindex="-1" role="dialog" aria-labelledby="importDataModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importDataModalLabel">Import Data</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Inside importDataModal -->
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="fileInput">Upload CSV File</label>
+                            <input type="file" class="form-control-file" id="fileInput" name="fileInput">
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="uploadCSV()">Upload</button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4" id="hasilCard">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Data Twitter</h6>
+        </div>
+        <div class="card-body">
+            <div class="mb-4">
+                <button class="btn btn-danger" onclick="openDeleteAllModal();">Hapus Semua Data</button>
+            </div>
+            <div class="modal fade" id="deleteAllModal" tabindex="-1" role="dialog"
+                aria-labelledby="deleteAllModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteAllModalLabel">Konfirmasi Hapus Semua Data</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            Apakah Anda yakin ingin menghapus semua data?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                            <button type="button" class="btn btn-danger" id="confirmDeleteAllButton">Hapus
+                                Semua</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <table class="table table-hover" id="dataTable" style="color: black;">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>username</th>
+                            <th>date</th>
+                            <th>rawContent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(document).ready(function () {
+        var t = $('#dataTable').DataTable({
+            "ajax": "{{ url_for('pages.core.api_data') }}",
+            "columns": [
+                { "data": null },
+                { "data": "username" },
+                { "data": "date" },
+                { "data": "rawContent" }
+            ],
+            "columnDefs": [{
+                "targets": 0,
+                "searchable": false,
+                "orderable": false,
+                "width": "5%",
+                "className": "dt-center"
+            }],
+            "order": [[0, 'asc']],
+            "createdRow": function (row, data, dataIndex) {
+                $('td:eq(0)', row).html(dataIndex + 1);
+            }
+        });
+        t.on('draw.dt', function () {
+            var PageInfo = t.page.info();
+            t.column(0, { page: 'current' }).nodes().each(function (cell, i) {
+                cell.innerHTML = i + 1 + PageInfo.start;
+            });
+        });
+    });
+
+    function openDeleteAllModal() {
+        $('#deleteAllModal').modal('show');
+    }
+
+    function openImportModal() {
+        Swal.fire({
+            title: 'Impor Data',
+            text: 'Pilih file CSV yang ingin diimpor.',
+            input: 'file',
+            inputAttributes: {
+                'accept': '.csv',
+                'aria-label': 'Upload CSV file'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Impor',
+            cancelButtonText: 'Batal',
+            showLoaderOnConfirm: true,
+            preConfirm: (file) => {
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('fileInput', file);
+                    return fetch("{{ url_for('pages.core.api_upload_csv_file') }}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(response.statusText)
+                            }
+                            return response.json();
+                        })
+                        .catch(error => {
+                            Swal.showValidationMessage(`Gagal mengimpor: ${error}`);
+                        });
+                } else {
+                    Swal.showValidationMessage('Harus memilih file CSV untuk diimpor.');
+                }
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Berhasil Diimpor!',
+                    icon: 'success',
+                    text: 'File CSV telah berhasil diimpor ke database.'
+                });
+                $('#dataTable').DataTable().ajax.reload();
+            }
+        });
+    }
+
+    function openDeleteAllModal() {
+        Swal.fire({
+            title: 'Konfirmasi Penghapusan',
+            text: 'Apakah Anda yakin ingin menghapus semua data?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Hapus',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "{{ url_for('pages.core.api_delete_all_data') }}",
+                    type: "DELETE",
+                    success: function (response) {
+                        Swal.fire(
+                            'Terhapus!',
+                            'Semua data telah dihapus.',
+                            'success'
+                        );
+                        $('#dataTable').DataTable().ajax.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        Swal.fire(
+                            'Gagal!',
+                            'Gagal menghapus data: ' + error,
+                            'error'
+                        );
+                    }
+                });
+            }
+        });
+    }
+
+
+</script>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Modelling topik dengan LDA</h1>
+    </div>
+    <div class="d-sm-flex align-items-center justify-content-start mb-4">
+        <button id="startButton" class="btn btn-primary">Mulai</button>
+    </div>
+    <div class="card shadow mb-4" id="hasilModelling" style="display: none;">
+        <div class="card-body" style="color: black;">
+
+        </div>
+    </div>
+    <div class="card shadow mb-4" id="linkAnomalyCard" style="display: none;">
+        <div class="card-body">
+            <div id="sequenceDetails" class="mb-4">
+                <h4>Tweet yang akan dimodel <span id="sequenceTime"></span></h4>
+            </div>
+            <table id="dataTable" class="table" style="color: black;">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Text</th>
+                    </tr>
+                </thead>
+                <tbody style="max-height: 400px; overflow-y: auto;">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+    $(document).ready(function () {
+        loadAndDisplayLdaResults();
+        $('#startButton').click(function () {
+            Swal.fire({
+                title: "Mulai LDA",
+                text: "Tekan 'Mulai' untuk memulai proses LDA",
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: "Mulai",
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return new Promise((resolve, reject) => {
+                        $.ajax({
+                            url: "{{ url_for('pages.core.run_lda') }}",
+                            type: "GET",
+                            success: function (response) {
+                                if (response.error) {
+                                    reject(new Error('Gagal menjalankan LDA: ' + response.error));
+                                } else {
+                                    loadAndDisplayLdaResults()
+                                    resolve(response);
+                                }
+                            },
+                            error: function (xhr, status, error) {
+                                if (xhr.status === 400) {
+                                    Swal.fire({
+                                        title: 'Gagal Melakukan Modelling',
+                                        text: xhr.responseJSON.error,
+                                        icon: 'error'
+                                    });
+                                } else if (xhr.status === 404) {
+                                    reject(new Error('File not found'));
+                                } else if (xhr.status === 500) {
+                                    reject(new Error('Server error: ' + xhr.responseJSON.error));
+                                } else {
+                                    reject(new Error('AJAX error: ' + error));
+                                }
+                            }
+                        });
+                    })
+                        .catch(error => {
+                            Swal.showValidationMessage(`Request failed: ${error}`);
+                        });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    Swal.fire({
+                        title: 'Selesai!',
+                        text: 'LDA berhasil diproses.',
+                        icon: 'success'
+                    });
+                    $('#hasilModelling').show();
+                    displayLdaResults(result.value.topic_word_list);
+                }
+            });
+        });
+
+        function displayLdaResults(data) {
+            var $cardBody = $('#hasilModelling .card-body');
+            $cardBody.empty();
+
+            var topicWordList = data.topic_word_list;
+
+            Object.keys(topicWordList).forEach(function (topic, index) {
+                var sortedWords = topicWordList[topic].sort(function (a, b) {
+                    return b[1] - a[1];
+                });
+
+                var topWords = sortedWords.slice(0, Math.min(sortedWords.length, 3)).map(function (word) {
+                    return word[0];
+                });
+
+                var newTopicTitle = topWords.join(', ');
+
+                var formattedWords = sortedWords.map(function (item) {
+                    return item[0] + " = " + item[1].toFixed(6);
+                }).join(", ");
+
+                var $topic = $('<div>').append($('<h5>').text('Topik ' + newTopicTitle), $('<p>').text(formattedWords));
+                $cardBody.append($topic);
+            });
+        }
+
+
+        var table = $('#dataTable').DataTable({
+            "ajax": {
+                "url": "{{ url_for('pages.core.hasil_link_anomaly') }}",
+                "type": "GET",
+                "dataSrc": function (json) {
+                    if (json.error) {
+                        $('#linkAnomalyCard').hide();
+                        return [];
+                    }
+                    $('#linkAnomalyCard').show();
+                    if (json.waktu_sequence_terpilih) {
+                        $('#sequenceTime').text(json.waktu_sequence_terpilih.join(", "));
+                    }
+                    return json.sequence_text.map((text, index) => {
+                        return { '#': index + 1, 'Text': text };
+                    });
+                },
+                "error": function (xhr, status, error) {
+                    $('#linkAnomalyCard').hide();
+                    console.error("AJAX Error:", status, error);
+                }
+            },
+            "columns": [
+                { "data": "#" },
+                { "data": "Text" }
+            ]
+        });
+
+        function loadAndDisplayLdaResults() {
+            $.ajax({
+                url: "/topic_word_list.json",
+                type: "GET",
+                success: function (response) {
+                    if (response.error) {
+                        console.error('Gagal memuat LDA: ' + response.error);
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Gagal memuat data LDA: ' + response.error,
+                            icon: 'error'
+                        });
+                    } else {
+                        displayLdaResults(response);
+                        $('#hasilModelling').show();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX error: ' + error);
+                }
+            });
+        }
+    });
+
+
+
+</script>
+{% endblock %}
