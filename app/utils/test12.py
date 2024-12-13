@@ -34,7 +34,7 @@ def update_histogram(histogram, bins, score, r_H=0.001, lambda_H=0.5):
         # print(f"indeks -{h}")
         if h == bin_index:
             updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-            # print(f"kondisi true = {updated_histogram[h]}")
+            print(f"kondisi true = {updated_histogram[h]}")
         else:
             updated_histogram[h] = (1 - r_H) * histogram[h]
             # print(f"false = {updated_histogram[h]}")

@@ -263,7 +263,7 @@ def create_X_t(x_t, order):
 
 # Bentuk X_t berdasarkan data x_t
 order = 3 
-m = order
+m = 0
 X_t = create_X_t(x_t, order=order)
 print(f"Nilai x_bar_t = {X_t}")
 
@@ -277,9 +277,9 @@ def update_matrices(V_prev_inv, M_prev, x_t, xt):
     c_t = r * x_t.T @ V_prev_inv @ x_t
     V_t = (1 / (1 - r)) * V_prev_inv - (r / (1 - r)) * (V_prev_inv @ np.outer(x_t, x_t) @ V_prev_inv) / (1 - r + c_t)
     M_t = (1 - r) * M_prev + r * x_t.flatten() * xt
+    # print(f"--- perhitungan Vt ---")
     # print(M_t)
     # print(V_t)
-    # print(f"--- perhitungan Vt ---")
     # print("----------")
     # print("\n")
     return V_t, M_t, c_t.item()
@@ -299,68 +299,69 @@ V = V_inv
 
 A_t = np.dot(V, M)
 # print(A_t)
-
-# print(d_t)
+print("--- d_t")
+print(d_t)
 # Hitung residuals (sisa) e_t
 e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
-# print(e_t)
-tau_t = [(1 / (i + 1 - m)) * sum([e_t[j]**2 for j in range(m, i + 1)]) for i in range(m+1, len(e_t))]
-# print(tau_t)
-s_t = [(t - m) * tau_t[i] for i in range(m+1, len(tau_t))]
-# print("--- s_t ---")
-# print(s_t)
-K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((t - m - 1) / 2) / gamma((t - m) / 2) for i in range(m, len(d_t) - 1)]
-# print("--- K_t ---")
-# print(K_t)
-p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(t - m) / 2) / s_t[i - 1]**(-(t - m - 1) / 2)) for i in range(1, len(s_t))]
-# print(p_SDNML)
+print("--- e_t ---")
+print(x_t[0 + 3])
+print(e_t)
+tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i + 1)]) for i in range(m+1, len(X_t))]
+print(len(tau_t))
+print(len(X_t))
+print("--- tau_t ---")
+print(tau_t)
+length_st = len(X_t) - (order+1)
+s_t = [(i - m) * tau_t[i] for i in range(m+1, length_st)]
+print("--- s_t ---")
+print(length_st)
+print(len(s_t))
+print(s_t)
+K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t))]
+# K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t) - 1)]
+print("--- K_t ---")
+print(K_t)
+length_firstLayer = length_st - (order+1)
+p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer)]
+# p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i - m) / 2) / s_t[i - 1]**(-(i - m - 1) / 2)) for i in range(1, len(s_t))]
+print("--- psdnml ---")
+print((s_t[1]**(-(t - m) / 2) / s_t[1 - 1]**(-(t - m - 1) / 2)))
+print(p_SDNML)
 
 log_p_SDNML = [
     -np.log(np.abs(p_SDNML[i])) 
     for i in range(len(p_SDNML))
 ]
-print("--- uji debug ---")
-print(f"{len(log_p_SDNML)}")
-# Menambahkan log_sdnml ke dalam hasil_agregasi
-for i, entry in enumerate(hasil_agregasi[order:], start=order):
-    entry["log_sdnml"] = log_p_SDNML[i - order]
+print("--- first score stage ---")
+print(log_p_SDNML)
 
-# Menampilkan hasil dengan log_sdnml
-print(json.dumps(hasil_agregasi, indent=4))
-
-# Menampilkan hasil agregasi dengan informasi log_psdnml
 def apply_smoothing(scores, T):
     """
     Terapkan smoothing pada skor menggunakan jendela waktu T.
     scores: Daftar skor yang sudah dihitung.
     T: Ukuran jendela untuk smoothing.
     """
+    print(f"first index smooth = {scores[0]}")
     smoothed_scores = []
-    for t in range(T - 1, len(scores)):  # Mulai dari t = T-1 untuk memastikan kita memiliki jendela penuh
-        smoothed_score = np.mean(scores[t-T+1:t+1])  # Ambil rata-rata dari skor dalam jendela
-        smoothed_scores.append(smoothed_score)  # Tambahkan pembagi 1/T untuk rata-rata
+    for t in range(T - 1, len(scores)):  
+        smoothed_score = np.mean(scores[t-T+1:t+1])  
+        smoothed_scores.append(smoothed_score)
     return smoothed_scores
 
 
 # Hitung first score berdasarkan panjang kode SDNML
-print("--- First layer scoring -----")
+# print("--- First layer scoring -----")
 first_scores = []
 for t in range(len(log_p_SDNML)):
         score = log_p_SDNML[t]
         first_scores.append(score)
-        print(f"Panjang kode SDNML untuk x_{t + 1}: {score}")
-
-# # Cetak hasil first score
-# for t in range(len(first_scores)):
-#     print(f"First Score untuk x_{t + m + 1}: {first_scores[t]}")
-# Contoh penggunaan untuk pertama kalinya:
-T = 5  # Misalnya jendela waktu adalah 5
+        # print(f"Panjang kode SDNML untuk x_{t + 1}: {score}")
+print(first_scores)
+T = 3  
 smoothed_scores = apply_smoothing(first_scores, T)
+print("--- smoothed scores ---")
+print(smoothed_scores)
 
-# Cetak hasil smoothing
-# for t in range(len(smoothed_scores)):
-#     print(f"Smoothed Score untuk x_{t + T}: {smoothed_scores[t]}")
-# new_order = 1
 X_t_second = create_X_t(smoothed_scores, order=order)
 x_t_second = smoothed_scores
 V0_second = np.identity(order)
@@ -368,49 +369,62 @@ M0_second = np.zeros(order)
 
 V_inv_second = V0_second
 M_second = M0_second
-
+# print(x_t_second)
 d_t_second = []
-for t in range(len(X_t_second) - order):
+for t in range(len(X_t_second)):
     V_inv_second, M_second, c_t_second = update_matrices(V_inv_second, M_second, X_t_second[t], x_t[t + order])
     d_t_value = c_t_second / (1 - r + c_t_second)
     d_t_second.append(d_t_value)
 
-# K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((t - m - 1) / 2) / gamma((t - m) / 2) for i in range(m, len(d_t) - 1)]
-# # print("--- K_t ---")
-# # print(K_t)
-# p_SDNML = [K_t[i]**-1 * x_t[i - 1] * (s_t[i]**(-(t - m) / 2) / s_t[i - 1]**(-(t - m - 1) / 2)) for i in range(1, len(s_t))]
-
+print("--- d_t second ---")
+print()
+print(d_t_second)
 print("--- score layer ---")
 A_t_second = np.dot(V_inv_second, M_second)
 # print(A_t_second)
-e_t_second = [x_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second) - order)]
-# print(e_t_second)
+e_t_second = [x_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second))]
+print("--- et second ---")
+print(len(e_t_second))
+print(e_t_second)
 
-tau_t_second = [(1 / (i + 1 - m)) * sum([e_t_second[j]**2 for j in range(m, i + 1)]) for i in range(m+1, len(e_t_second))]
+tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t_second))]
+print("--- tau_t_second ---")
+print(tau_t_second)
 
-s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, len(tau_t_second))]
+length_st_second = len(X_t_second) - (order+1)
+s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, length_st_second)]
+print("--- s_t_second ---")
 
-K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * x_t[i - 1] * gamma((t - m - 1) / 2) / gamma((t - m) / 2) for i in range(m, len(d_t_second) - 1)]
-
-p_SDNML_second = [K_t_second[i]**-1 * x_t_second[i - 1] * (s_t_second[i]**(-(t - m) / 2) / s_t_second[i - 1]**(-(t - m - 1) / 2)) for i in range(1, len(s_t_second))]
+print(s_t_second)
+K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
+print("--- kt_second ---")
+# print(d_t_second[4])
+# print(np.sqrt(np.pi) / (1 - d_t_second[4]) * gamma((t - m - 1) / 2) / gamma((t - m) / 2))
+print(K_t_second)
+length_firstLayer_second = length_st_second - (order+1)
+p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer_second)]
+print("--- second layer learn ---")
 print(p_SDNML_second)
 log_p_SDNML_second = [
     -np.log(np.abs(p_SDNML_second[i])) 
     for i in range(len(p_SDNML_second))
 ]
 
-for i in range(len(log_p_SDNML_second)):
-    hasil_agregasi[i]["log_psdnml_second"] = log_p_SDNML_second[i]
-print(f"---second scores ---")
+print("--- second score stage ---")
+print(p_SDNML_second[0])
+print(-np.log(np.abs(p_SDNML_second[0])) )
+print(log_p_SDNML_second)
 
-print("--- First layer scoring -----")
+
 second_scores = log_p_SDNML_second
+print("--- smoothed score ---")
+smoothed_scores_second = apply_smoothing(second_scores, T)
+print(smoothed_scores_second)
 
 
 def initialize_bins(scores, NH):
-    a = np.mean(scores) + 2 * np.std(scores)  # Average + 3σ
-    # print(f"")
-    b = np.min(scores)  # Minimum of the data
+    a = np.mean(scores) + 2 * np.std(scores)  
+    b = np.min(scores)  
     bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
     print(bin_edges)
     return bin_edges, a, b
@@ -419,28 +433,14 @@ def initialize_histogram(NH):
     return np.ones(NH) / NH
 
 def update_histogram(histogram, bins, score, r_H, lambda_H):
-    # print(f"bins = {bins}")
-    # print(f"score = {score}")
     bin_index = np.digitize(score, bins) - 1
-    # print(bin_index)
-    
-    # Inisialisasi histogram baru dengan metode kondisional
     updated_histogram = np.zeros_like(histogram)
-    # print(f"histogram = {histogram}")
-    # print(f"updated histogram = {updated_histogram}")
-    
+
     for h in range(len(histogram)):
-        # print(f"h = {bin_index}")
-        
-        # print(f"indeks -{h}")
         if h == bin_index:
             updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-            # print(f"kondisi true = {updated_histogram[h]}")
         else:
             updated_histogram[h] = (1 - r_H) * histogram[h]
-            # print(f"false = {updated_histogram[h]}")
-    
-    # Normalisasi dengan λ_H
     updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
     
     return updated_histogram
@@ -448,15 +448,11 @@ def update_histogram(histogram, bins, score, r_H, lambda_H):
 def optimize_threshold(histogram, bins, rho):
     cumulative_distribution = np.cumsum(histogram)
     threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
-    # print(histogram)
-    # print(f"cumula_distri = {cumulative_distribution}")
-    # print(f"thres index = {threshold_index}")
     return bins[threshold_index]
 
-def process_session(scores, NH=20, rho=0.05, r_H=0.005, lambda_H=0.01):
+def process_session(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
     bins, a, b = initialize_bins(scores, NH)
     histogram = initialize_histogram(NH)
-    # print(histogram)
     results = []
 
     for i, score in enumerate(scores):
@@ -469,24 +465,6 @@ def process_session(scores, NH=20, rho=0.05, r_H=0.005, lambda_H=0.01):
     return results
 results = process_session(second_scores)
         
-# Gabungkan skor agregasi dengan hasil alarm
-aggregated_scores_with_alarm = []
-for i, result in enumerate(results):
-    aggregated_scores_with_alarm.append({
-        "Session": i + 1,
-        "Aggregated Score": second_scores[i],  # Menambahkan skor agregasi dari second_scores
-        "Alarm": result['Alarm'],  # Status alarm dari hasil process_session
-        "Threshold": result['Threshold']
-    })
 # print(json.dumps(hasil_agregasi, indent=4))
 print(second_scores)
 print(f"std = {np.std(second_scores)}")
-
-# # Menampilkan hasil agregasi yang memiliki alarm
-# print("--- Hasil Agregasi dengan Alarm ---")
-# for item in aggregated_scores_with_alarm:
-#     if item['Alarm']:  # Hanya tampilkan jika ada alarm
-#         print(f"Session {item['Session']}: "
-#               f"Aggregated Score = {item['Aggregated Score']:.3f}, "
-#               f"Threshold = {item['Threshold']:.3f}, "
-#               f"Alarm = {item['Alarm']}")
