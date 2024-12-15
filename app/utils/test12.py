@@ -1,72 +1,85 @@
 import numpy as np
 
-# Nilai skor
-second_scores = [23.025850929940457, -6.398336724694618, -6.362778510083174, 
-                 -6.806198891185467, -6.647921838748839, -6.7787344105298155, 
-                 -6.0544346931294495, -6.541114644102221, -6.679299661102484, 
-                 -6.902605915476471, -6.185877679866674, -6.449303053142949, 
-                 -6.584217998410003]
-def initialize_bins(scores, NH=20):
-    a = np.mean(scores) + 3 * np.std(scores)  # Average + 3σ
-    # print(f"")
-    b = np.min(scores)  # Minimum of the data
+import numpy as np
+
+def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
+    """
+    Implementasi Dynamic Threshold Optimization (DTO) dalam satu fungsi
+    
+    Parameters:
+    - scores: List skor yang akan dianalisis
+    - NH: Jumlah bin histogram (default: 20)
+    - rho: Parameter untuk threshold (default: 0.05)
+    - r_H: Parameter diskounting (default: 0.001)
+    - lambda_H: Parameter estimasi (default: 0.5)
+    
+    Returns:
+    - results: List dictionary berisi hasil untuk setiap sesi
+    """
+    # Inisialisasi bin
+    a = np.mean(scores) + 2 * np.std(scores)  
+    b = np.min(scores)  
     bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
-    print(bin_edges)
-    return bin_edges, a, b
-
-def initialize_histogram(NH=20):
-    return np.ones(NH) / NH
-
-def update_histogram(histogram, bins, score, r_H=0.001, lambda_H=0.5):
-    # print(f"bins = {bins}")
-    # print(f"score = {score}")
-    bin_index = np.digitize(score, bins) - 1
-    # print(bin_index)
     
-    # Inisialisasi histogram baru dengan metode kondisional
-    updated_histogram = np.zeros_like(histogram)
-    # print(f"histogram = {histogram}")
-    # print(f"updated histogram = {updated_histogram}")
+    # Inisialisasi histogram uniform
+    histogram = np.ones(NH) / NH
     
-    for h in range(len(histogram)):
-        # print(f"h = {bin_index}")
-        
-        # print(f"indeks -{h}")
-        if h == bin_index:
-            updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-            print(f"kondisi true = {updated_histogram[h]}")
-        else:
-            updated_histogram[h] = (1 - r_H) * histogram[h]
-            # print(f"false = {updated_histogram[h]}")
-    
-    # Normalisasi dengan λ_H
-    updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
-    
-    return updated_histogram
-
-def optimize_threshold(histogram, bins, rho=0.05):
-    cumulative_distribution = np.cumsum(histogram)
-    threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
-    print(histogram)
-    print(f"cumula_distri = {cumulative_distribution}")
-    print(f"thres index = {threshold_index}")
-    return bins[threshold_index]
-
-def process_session(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
-    bins, a, b = initialize_bins(scores, NH)
-    histogram = initialize_histogram(NH)
-    # print(histogram)
+    # Variabel untuk menyimpan hasil
     results = []
-
-    for i, score in enumerate(scores):
-        histogram = update_histogram(histogram, bins, score, r_H, lambda_H)
-        threshold = optimize_threshold(histogram, bins, rho)
-        alarm = score >= threshold
-        print(f"{score} >= {threshold} = {alarm}")
-        results.append({"Session": i + 1, "Score": score, "Threshold": threshold, "Alarm": alarm})
+    
+    # Proses untuk setiap sesi
+    M = len(scores)
+    for j in range(M - 1):
+        # Temukan indeks bin untuk skor
+        bin_index = np.digitize(scores[j], bin_edges) - 1
+        
+        # Inisialisasi histogram yang diupdate
+        updated_histogram = np.zeros_like(histogram)
+        
+        # Update histogram sesuai aturan pada algoritma
+        for h in range(len(histogram)):
+            if h == bin_index:
+                updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
+            else:
+                updated_histogram[h] = (1 - r_H) * histogram[h]
+        
+        # Normalisasi dengan parameter lambda
+        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
+        
+        # Update histogram
+        histogram = updated_histogram
+        
+        # Hitung distribusi kumulatif
+        cumulative_distribution = np.cumsum(histogram)
+        
+        # Temukan indeks threshold berdasarkan parameter rho
+        threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
+        threshold = bin_edges[threshold_index]
+        
+        # Tentukan apakah alarm aktif
+        alarm = scores[j] >= threshold
+        
+        # Simpan hasil
+        results.append({
+            "Session": j + 1, 
+            "Score": scores[j], 
+            "Threshold": threshold, 
+            "Alarm": alarm
+        })
     
     return results
-results = process_session(second_scores)
+
+# Contoh penggunaan
+second_scores = [23.025850929940457, -6.398336724694618, -6.362778510083174, 
+                -6.806198891185467, -6.647921838748839, -6.7787344105298155, 
+                -6.0544346931294495 -6.541114644102221 -6.679299661102484, 
+                -6.902605915476471 -6.18587767986667, -6.449303053142949, 
+                -6.58421799841000]
+# Jalankan fungsi
+results = dynamic_threshold_optimization(second_scores)
+
+for result in results:
+    print(f"Sesi {result['Session']}: Skor {result['Score']}, Threshold {result['Threshold']}, Alarm {result['Alarm']}")
 # def initialize_histogram(NH=20, lambda_H=0.5):
 #     """
 #     Inisialisasi histogram awal
