@@ -70,14 +70,13 @@ tweets_data.sort(key=lambda x: x['created_at'])
 # ---------- Tahap 1: Probabilitas Mention ----------
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
 
-hasil_perhitungan = []
+print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
 
+hasil_perhitungan = []
 def hitung_probabilitas_mention(tweets):
     alpha = 0.5
     beta = 0.5
     m = 0
-    k_sigma = 0
-    unique_usernames = set()
 
     for i, tweet in enumerate(tweets):
         iterasi = 1.0
@@ -86,16 +85,10 @@ def hitung_probabilitas_mention(tweets):
         m += temp_m
         n = i + 1
 
-        username = tweet['username']
-        if username not in unique_usernames:
-            unique_usernames.add(username)
-            k_sigma += 1 
-
-        for j in range(k_sigma):
+        for j in range(k+1):
             if j == 0:
                 iterasi *= (n + alpha) / (m + k + beta)
             iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
-
         waktu_str = tweet['created_at'].strftime("%Y-%m-%d %H:%M:%S")
 
         hasil_perhitungan.append({
@@ -109,97 +102,97 @@ def hitung_probabilitas_mention(tweets):
 
 hasil_mention = hitung_probabilitas_mention(tweets_data)
 
-# Cetak hasil probabilitas mention untuk ID 1-100
-# for hasil in hasil_mention[:300]:
-#     print(f"ID: {hasil['id']}, Waktu: {hasil['created_at']}, Probabilitas Mention: {hasil['probabilitas_mention']}, jumlah_mention: {hasil['mentions']}")
 
-# ---------- Tahap 2: Hitung Probablitas Mention User ----------
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
-def hitung_mention_tiap_id(target_id, tweets_data):
-    temp_mentions = []  # List untuk menyimpan semua mention yang pernah muncul
-    temp_pmention = []
-    m = 0  # Total mention dalam dataset
-    y = 0.5  # Parameter y
-    pmention = []  # Probabilitas mention dalam bentuk list jika ada lebih dari satu
+def hitung_mention_tiap_id(tweets_data):
+    temp_mentions = []
+    mention_list_uji = []
+    m = 0  
+    y = 0.5 
 
     for tweet in tweets_data:
         mentions = tweet['mentions']
-        temp_m = tweet['jumlah_mention']
-        m += temp_m  # Tambahkan jumlah mention dalam tweet ke total mention
+        jumlah_mention = tweet['jumlah_mention']
+        m += jumlah_mention
 
-        # Pisahkan mention jika berbentuk string
+        
         if isinstance(mentions, str):
-            mentions_list = mentions.split(',')
+            mentions_list = mentions.split(',') 
         else:
             mentions_list = mentions
-
-        # Jika ID tweet cocok dengan target_id, hitung probabilitasnya
-        if tweet['id'] == target_id:
-            if tweet['jumlah_mention'] > 1:
-                for mention in mentions_list:
-                    mu = temp_mentions.count(mention)
-                    if mu == 0:
-                        p = y / (m + y)
-                    else:
-                        p = mu / (m + y)
-                    temp_pmention.append(p)
-                pmention.extend(temp_pmention)  # Simpan nilai probabilitas dalam bentuk list
-            else:
-                mention = mentions_list[0]
-                mu = temp_mentions.count(mention)
+        mentions_list = mentions_list[0].split(',')
+        
+        if tweet['jumlah_mention'] > 1:
+            pmention_list = []  
+            for mention in mentions_list: 
+                mu = mention_list_uji.count(mention)
                 if mu == 0:
-                    pmention.append(y / (m + y))
+                    p = y / (m + y)
                 else:
-                    pmention.append(mu / (m + y))
+                    p = mu / (m + y)
+                pmention_list.append(p)
+        else:
+            pmention_list = []
+            mu = temp_mentions.count(mentions_list) 
+            if mu == 0:
+                p = y / (m + y)
+            else:
+                p = mu / (m + y)
+            pmention_list.append(p) 
+        mention_list_uji.extend(mentions_list)
 
-        # Tambahkan mention baru ke `temp_mentions` setelah memproses tweet ini
-        temp_mentions.extend(mentions_list)
+        for hasil in hasil_perhitungan:
+            if hasil['id'] == tweet['id']:
+                hasil['probabilitas_user'] = pmention_list
 
-    return pmention
+    return hasil_perhitungan  
+hasil_probabilitas_user = hitung_mention_tiap_id(tweets_data)
 
-def hitung_probabilitas_user(tweets):
-    for row in tweets:
-        pmention = hitung_mention_tiap_id(row['id'], tweets)
-        for item in hasil_perhitungan:
-            if item['id'] == row['id']:
-                item['probabilitas_user'] = pmention  # Simpan list probabilitas
-
-    return hasil_perhitungan
-
-hasil_probabilitas_user = hitung_probabilitas_user(tweets_data)
 print('---------- Hitung Skor Anomaly ----------')
-# print(json.dumps(hasil_perhitungan, indent=4))
 def hitung_skor_anomaly(hasil):
     for skor in hasil:
-        nilai_mention = skor['probabilitas_mention']
-        nilai_user_list = skor['probabilitas_user']
 
-        # Hitung skor anomaly untuk setiap item
-        for item in hasil_perhitungan:
+        for item in hasil:
             if item['id'] == skor['id']:
-                if isinstance(nilai_user_list, list):
-                    # Hitung log dari semua probabilitas dalam list
-                    log_user = sum(-math.log10(user) for user in nilai_user_list)
+                probabilitas_mention = skor.get('probabilitas_mention', [])
+                probabilitas_user = skor.get('probabilitas_user', [])
+                # print(f"probabili user = {probabilitas_user}")
+                temp_puser = []
+                if item['mentions'] > 1:
+                    for i in probabilitas_user:
+                        calculate = math.log(i)
+                        temp_puser.append(calculate)
                 else:
-                    log_user = -math.log10(nilai_user_list)
-                
-                skor_anomaly = -math.log10(nilai_mention) + log_user
+                    calculate = math.log(probabilitas_user[0])
+                    temp_puser.append(calculate)
+                # print(temp_puser)
+                skor_anomaly = -math.log(probabilitas_mention)-sum(temp_puser)
+                # print(f"item {item['id']} = {skor_anomaly}")
                 item['skor_anomaly'] = skor_anomaly
-# print(hasil_perhitungan)
-hitung_skor_anomaly(hasil_perhitungan)
 
+hasil_skor_anomaly = hitung_skor_anomaly(hasil_perhitungan)
+
+"""
+2. Menghitung Agregasi Skor Anomaly
+Program ini menggunakan diskrit time sebesar 6 jam, dan jumlah diskrit sebanyak 120
+"""
 
 hasil_agregasi = []
+
+print('---------- Hitung Skor Agregasi ----------')
 def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
+    waktu_akhir_string = hasil_skor[-1]['created_at']
+
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
+    waktu_akhir_data = datetime.strptime(waktu_akhir_string, "%Y-%m-%d %H:%M:%S")
 
     window_r = timedelta(hours=24)  
-    jumlah_diskrit = 40  
+    jumlah_diskrit = 120  
 
     waktu_akhir = waktu_awal + window_r
-
-    diskrit_anomaly = [[] for _ in range(jumlah_diskrit)]
+    total_durasi = (waktu_akhir_data - waktu_awal).total_seconds()
+    jumlah_diskrit = int(total_durasi // window_r.total_seconds())+1
 
     for index in range(jumlah_diskrit):
         jml_skor_anomaly = 0  
@@ -212,9 +205,7 @@ def hitung_skor_agregasi(hasil_skor):
             if waktu_awal <= tweet_waktu < waktu_akhir:
                 jml_skor_anomaly += data['skor_anomaly']
                 jumlah_mention_agregasi += data['mentions'] 
-                diskrit_anomaly[index].append(data)  
-
-        s_x = (1 / window_r.total_seconds() / 3600) * jml_skor_anomaly  
+        s_x = (1 / (window_r.total_seconds() / 3600)) * jml_skor_anomaly  
         hasil_agregasi.append({
             "diskrit": index + 1, 
             "waktu_awal": waktu_awal.strftime('%Y-%m-%d %H:%M:%S'), 
@@ -223,15 +214,13 @@ def hitung_skor_agregasi(hasil_skor):
             "jumlah_mention_agregasi": jumlah_mention_agregasi
         })
         
-        # Update waktu_awal dan waktu_akhir untuk iterasi berikutnya
         waktu_awal = waktu_akhir
         waktu_akhir += window_r
 
     return hasil_agregasi
 
 hasil_skor_agregasi = hitung_skor_agregasi(hasil_perhitungan)
-# print(json.dumps(hasil_agregasi, indent=4))
-# print(hasil_agregasi)
+print(json.dumps(hasil_agregasi, indent=4))
 # ========================== IMPLEMENTASI SDNML ==========================
 
 """
