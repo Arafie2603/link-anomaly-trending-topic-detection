@@ -8,7 +8,7 @@ import sys
 import logging
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.db_connection import create_connection
+from app.utils.db_connection import create_connection
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

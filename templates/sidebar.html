@@ -3,7 +3,7 @@
 
     <!-- Sidebar - Brand -->
     <a class="sidebar-brand d-flex align-items-center justify-content-center"
-        href="{{ url_for('pages.core.home_route') }}">
+        href="">
         <div class="sidebar-brand-text">Deteksi Trending Topik Link Anomaly</div>
     </a>
 
@@ -12,7 +12,7 @@
 
     <!-- Nav Item - Dashboard -->
     <li class="nav-item {% if request.path == '/' %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('pages.core.home_route') }}">
+        <a class="nav-link" href="{{ url_for('core.home_route') }}">
             <i class="fas fa-fw fa-tachometer-alt"></i>
             <span>Dashboard</span></a>
     </li>
@@ -22,7 +22,7 @@
 
     <!-- Nav Item - Scraping / Import Data -->
     <li class="nav-item {% if request.path == '/import' %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('pages.core.scraping_route') }}">
+        <a class="nav-link" href="=">
             <i class="fas fa-fw fa-magnifying-glass"></i>
             <span>Import Data</span></a>
     </li>
@@ -32,7 +32,7 @@
 
     <!-- Nav Item - Scraping / Preprocessing -->
     <li class="nav-item {% if request.path == '/preprocessing' %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('pages.core.preprocessing_route') }}">
+        <a class="nav-link" href="{{ url_for('core.preprocessing_route') }}">
             <i class="fas fa-fw fa-scissors"></i>
             <span>preprocessing</span></a>
     </li>
@@ -42,7 +42,7 @@
 
     <!-- Nav Item - Link Anomaly -->
     <li class="nav-item {% if request.path == '/link_anomaly' %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('pages.core.link_anomaly_route') }}">
+        <a class="nav-link" href="">
             <i class="fas fa-fw fa-circle-nodes"></i>
             <span>Link Anomaly</span></a>
     </li>
@@ -52,7 +52,7 @@
 
     <!-- Nav Item - Modelling Topik -->
     <li class="nav-item {% if request.path == '/modelling' %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('pages.core.modelling_route') }} ">
+        <a class="nav-link" href=" ">
             <i class="fas fa-fwd fa-puzzle-piece"></i>
             <span>Modelling Topik</span></a>
     </li>
