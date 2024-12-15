@@ -13,21 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
 from datetime import datetime, timedelta
 from scipy.special import gamma
-"""
-1. Perhitungan Skor Anomaly
-- Perhitungan probabilitas mention menggunakan persamaan (3.10)
-- Perhitungan probabilitas user menggunakan persamaan (3.11)
 
-"""
-"""
-Penjelasan tiap variabel di bagian perhitungan skor anomaly tahap pertama:
-m = Jumlah mention dalam rentang waktu perhitungan
-n = Indeks tweet pada rentang waktu perhitungan 
-k = Jumlah mention pada tweet
-alpha, beta = nilai konstan, merujuk pada penelitian Takahashi
-hasil_prob = variabel sementara untuk menghitung hasil perhitungan probabilitas mention pada tahap pertama
-iterasi = variabel yang menampung perhitungan pada setiap tweets
-"""
 def fetch_tweets_data():
     connection = create_connection()
     tweets_data = []
@@ -58,20 +44,21 @@ def fetch_tweets_data():
 
 # Fetching the tweets data
 tweets_data = fetch_tweets_data()
-
-# Pastikan 'created_at' adalah string sebelum mengonversi
 for tweet in tweets_data:
     if isinstance(tweet['created_at'], str):
         tweet['created_at'] = datetime.strptime(tweet['created_at'], "%Y-%m-%d %H:%M:%S")
-
-# Mengurutkan berdasarkan 'created_at'
 tweets_data.sort(key=lambda x: x['created_at']) 
 
-# ---------- Tahap 1: Probabilitas Mention ----------
-print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
+"""
+Penjelasan tiap variabel di bagian perhitungan skor anomaly tahap pertama:
+m = Jumlah mention dalam rentang waktu perhitungan
+n = Indeks tweet pada rentang waktu perhitungan 
+k = jumlah mention pada tweet dalam training
+alpha, beta = nilai konstan, merujuk pada penelitian Takahashi
+iterasi = variabel yang menampung perhitungan pada setiap tweets
+"""
 
 print('---------- Hasil Probabilitas Mention (TAHAPAN PERTAMA) ----------')
-
 hasil_perhitungan = []
 def hitung_probabilitas_mention(tweets):
     alpha = 0.5
@@ -99,9 +86,7 @@ def hitung_probabilitas_mention(tweets):
         })
     
     return hasil_perhitungan
-
 hasil_mention = hitung_probabilitas_mention(tweets_data)
-
 
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
 def hitung_mention_tiap_id(tweets_data):
@@ -174,7 +159,9 @@ hasil_skor_anomaly = hitung_skor_anomaly(hasil_perhitungan)
 
 """
 2. Menghitung Agregasi Skor Anomaly
-Program ini menggunakan diskrit time sebesar 6 jam, dan jumlah diskrit sebanyak 120
+    - diskrit waktu yang ditentukan 24 jam pada var window_r
+    - jumlah_diskrit ditentukan secara dinamis melalui program, menyesuaikan dengan data yang ada dalam dataset/database
+    - waktu awal diinisialisasi dengan waktu_awal var
 """
 
 hasil_agregasi = []
@@ -187,8 +174,7 @@ def hitung_skor_agregasi(hasil_skor):
     waktu_awal = datetime.strptime(waktu_awal_string, "%Y-%m-%d %H:%M:%S")
     waktu_akhir_data = datetime.strptime(waktu_akhir_string, "%Y-%m-%d %H:%M:%S")
 
-    window_r = timedelta(hours=24)  
-    jumlah_diskrit = 120  
+    window_r = timedelta(hours=24) 
 
     waktu_akhir = waktu_awal + window_r
     total_durasi = (waktu_akhir_data - waktu_awal).total_seconds()
@@ -224,16 +210,22 @@ print(json.dumps(hasil_agregasi, indent=4))
 # ========================== IMPLEMENTASI SDNML ==========================
 
 """
-Langkah 1: First Layering Learning
+Langkah 1: First Layer Learn
 Langkah - langkahnya :
-    1. Mencari nilai Koefisien AR
-        a. Mencari nilai Vt dan Xt
-        b. Mencari nilai invers Vt
-        c. Menghitung metode Sherman-Morisson-Woodburry
-        d. Implementasi perhitungan koefisien AR 
-        e. menghitung faktor normalisasi Kt(xt-1)
-        f. menghitung fungsi densitas SDNML 
-
+    1. Melakukan inisialisasi data dari agregasi :
+        a. x_t = data dari hasil_agregasi
+        b. X_t = vektor (transpose) dari hasil_agregasi
+        c. Menentukan nilai order, order menentukan seberapa banyak data masa lalu yang diinginkan untuk prediksi
+        d. m = merupakan nilai yang paling kecil sehingga perhitungan dapat diselesaikan secara unik (tiap indeks memiliki nilai yang berbeda)
+    2. Melakukan inisialisasi matrix :
+        a. V0 = inisialisasi untuk menghitung invers matrix Sherman-Morisson-Woodburry Vt
+        b. M0 = inisalisasi untuk menghitung Mt
+    3. Perhitungan Persamaan 4,5,6,7:
+        a. menghitung secara bersamaan Vt, Mt, dt, ct pada func update_matrices
+        b. mencari nilai A_t dengan melakukan perkalian pada matriks Vt dan Mt
+        c. mencari nilai s_t dengan menghitung e_t terlebih dahulu, keduanya dihitung dengan iterasi yang dimulai m+1 sesuai pada rumus
+        d. mencari nilai k_t gamma pada k_t merupakan untuk mencari nilai faktorial 
+        e. mencari nilai first layer learn dengan fungsi kepadatan p_SDNML 
 """
 r = 0.0005
 # print(json.dumps(hasil_agregasi, indent=4))
@@ -251,7 +243,7 @@ def create_X_t(x_t, order):
     return X_t
 
 # Bentuk X_t berdasarkan data x_t
-order = 3 
+order = 2 
 m = 0
 X_t = create_X_t(x_t, order=order)
 print(f"Nilai x_bar_t = {X_t}")
@@ -317,13 +309,30 @@ print("--- psdnml ---")
 print((s_t[1]**(-(t - m) / 2) / s_t[1 - 1]**(-(t - m - 1) / 2)))
 print(p_SDNML)
 
+print("--- first score stage ---")
+"""
+Langkah 2: First Scoring Stage
+Langkah - langkahnya :
+    1. mencari nilai firdt score learn melalui log_p_SDNML dengan mencari -nilai log dari p_SDNML (first layer)
+"""
 log_p_SDNML = [
-    -np.log(np.abs(p_SDNML[i])) 
+    -np.log(p_SDNML[i]) 
     for i in range(len(p_SDNML))
 ]
-print("--- first score stage ---")
 print(log_p_SDNML)
+first_scores = []
+for t in range(len(log_p_SDNML)):
+        score = log_p_SDNML[t]
+        first_scores.append(score)
+        # print(f"Panjang kode SDNML untuk x_{t + 1}: {score}")
+print(first_scores)
 
+print("--- Smoothing ---")
+"""
+Langkah 3: Smoothing
+    1. mencari nilai smoothing dengan mengambil skor rerata pada jendela waktu konstan T dan
+        kemudian menggeser jendela tersebut dari waktu ke waktu yang diaplikasikan pada func apply_smoothing
+"""
 def apply_smoothing(scores, T):
     """
     Terapkan smoothing pada skor menggunakan jendela waktu T.
@@ -336,20 +345,20 @@ def apply_smoothing(scores, T):
         smoothed_score = np.mean(scores[t-T+1:t+1])  
         smoothed_scores.append(smoothed_score)
     return smoothed_scores
-
-
-# Hitung first score berdasarkan panjang kode SDNML
-# print("--- First layer scoring -----")
-first_scores = []
-for t in range(len(log_p_SDNML)):
-        score = log_p_SDNML[t]
-        first_scores.append(score)
-        # print(f"Panjang kode SDNML untuk x_{t + 1}: {score}")
-print(first_scores)
-T = 3  
+T = 2  
 smoothed_scores = apply_smoothing(first_scores, T)
-print("--- smoothed scores ---")
 print(smoothed_scores)
+
+
+print("--- Second Learning Stage ---")
+"""
+Langkah 4: Second Learning Stage
+Langkah - langkahnya :
+    1. Mengulangi langkah pada first layer, dengan pendefinisian yang berbeda
+    2. Tahapan pada first dan second dapat diimplementasikan dengan func agar tidak boilerplate
+        dan dapat dengan mudah di maintenance, namun pada studi kasus saat ini saya belum menerapkannya
+        dengan berbagai macam alasan 
+"""
 
 X_t_second = create_X_t(smoothed_scores, order=order)
 x_t_second = smoothed_scores
@@ -358,102 +367,133 @@ M0_second = np.zeros(order)
 
 V_inv_second = V0_second
 M_second = M0_second
-# print(x_t_second)
+
+print("--- d_t second ---")
 d_t_second = []
 for t in range(len(X_t_second)):
     V_inv_second, M_second, c_t_second = update_matrices(V_inv_second, M_second, X_t_second[t], x_t[t + order])
     d_t_value = c_t_second / (1 - r + c_t_second)
     d_t_second.append(d_t_value)
-
-print("--- d_t second ---")
-print()
 print(d_t_second)
-print("--- score layer ---")
+
 A_t_second = np.dot(V_inv_second, M_second)
-# print(A_t_second)
-e_t_second = [x_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second))]
 print("--- et second ---")
-print(len(e_t_second))
+e_t_second = [x_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second))]
 print(e_t_second)
 
-tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t_second))]
 print("--- tau_t_second ---")
+tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t_second))]
 print(tau_t_second)
 
+print("--- s_t_second ---")
 length_st_second = len(X_t_second) - (order+1)
 s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, length_st_second)]
-print("--- s_t_second ---")
-
 print(s_t_second)
-K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
+
 print("--- kt_second ---")
-# print(d_t_second[4])
-# print(np.sqrt(np.pi) / (1 - d_t_second[4]) * gamma((t - m - 1) / 2) / gamma((t - m) / 2))
+K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
 print(K_t_second)
-length_firstLayer_second = length_st_second - (order+1)
-p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer_second)]
-print("--- second layer learn ---")
+
+length_second_learn = length_st_second - (order+1)
+p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_second_learn)]
 print(p_SDNML_second)
+
+print("--- Second Scoring Stage ---")
+"""
+Langkah 5: Second Scoring Stage
+Langkah - langkahnya :
+    1. mencari nilai Second Score Learn melalui log_p_SDNML_second dengan mencari -nilai log dari p_SDNML_second (Second Learn)
+"""
 log_p_SDNML_second = [
     -np.log(np.abs(p_SDNML_second[i])) 
     for i in range(len(p_SDNML_second))
 ]
 
-print("--- second score stage ---")
 print(p_SDNML_second[0])
-print(-np.log(np.abs(p_SDNML_second[0])) )
+print(-np.log(p_SDNML_second[0]))
 print(log_p_SDNML_second)
-
-
 second_scores = log_p_SDNML_second
-print("--- smoothed score ---")
-smoothed_scores_second = apply_smoothing(second_scores, T)
-print(smoothed_scores_second)
 
 
-def initialize_bins(scores, NH):
+"""
+Langkah akhir: Implementasi Dynamic Threshold Optimation (DTO)
+    1. Langkah akhir ini bertujuan untuk mendeteksi kumpulan diskrit yang memiliki trend topic
+        dengan ditandai sebagai alarm True pada data score
+    2. implementasi dari DTO diatur oleh fungsi dynamic_threshold_optimization, yang memiliki parameter yang sesuai
+        pada referensi penelitian Kenji Yamanishi mengenai Dynamic Syslog Mining for Network Failure Monitoring
+    3. a merupakan rerata dari data kemudian + 2 * np.std(scores) std merupakan standar deviasi pada input data
+        sementara b merupakan nilai minimum pada data.
+    4. inisalisasi bins 
+    5. inisialisasi histogram
+    6. lakukan looping dengan M - 1, M (data size)
+    7. Updating rule di atur pada looping h 
+    8. Threshold optimization diatur oleh threshold_index 
+    9. Alarm output diatur pada variabel alarm
+"""
+def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
+    """
+    Implementasi Dynamic Threshold Optimization (DTO) dalam satu fungsi
+    
+    Parameters:
+    - scores: List skor yang akan dianalisis
+    - NH: Jumlah bin histogram (default: 20)
+    - rho: Parameter untuk threshold (default: 0.05)
+    - r_H: Parameter diskounting (default: 0.001)
+    - lambda_H: Parameter estimasi (default: 0.5)
+    
+    Returns:
+    - results: List dictionary berisi hasil untuk setiap sesi
+    """
+    # Inisialisasi bin
     a = np.mean(scores) + 2 * np.std(scores)  
     b = np.min(scores)  
     bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
-    print(bin_edges)
-    return bin_edges, a, b
-
-def initialize_histogram(NH):
-    return np.ones(NH) / NH
-
-def update_histogram(histogram, bins, score, r_H, lambda_H):
-    bin_index = np.digitize(score, bins) - 1
-    updated_histogram = np.zeros_like(histogram)
-
-    for h in range(len(histogram)):
-        if h == bin_index:
-            updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-        else:
-            updated_histogram[h] = (1 - r_H) * histogram[h]
-    updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
     
-    return updated_histogram
-
-def optimize_threshold(histogram, bins, rho):
-    cumulative_distribution = np.cumsum(histogram)
-    threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
-    return bins[threshold_index]
-
-def process_session(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
-    bins, a, b = initialize_bins(scores, NH)
-    histogram = initialize_histogram(NH)
+    # Inisialisasi histogram uniform
+    histogram = np.ones(NH) / NH
+    
     results = []
-
-    for i, score in enumerate(scores):
-        histogram = update_histogram(histogram, bins, score, r_H, lambda_H)
-        threshold = optimize_threshold(histogram, bins, rho)
-        alarm = score >= threshold
-        print(f"{score} >= {threshold} = {alarm}")
-        results.append({"Session": i + 1, "Score": score, "Threshold": threshold, "Alarm": alarm})
+    
+    M = len(scores)
+    for j in range(M - 1):
+        bin_index = np.digitize(scores[j], bin_edges) - 1
+        
+        updated_histogram = np.zeros_like(histogram)
+        
+        for h in range(len(histogram)):
+            if h == bin_index:
+                updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
+            else:
+                updated_histogram[h] = (1 - r_H) * histogram[h]
+        
+        # Normalisasi dengan parameter lambda
+        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
+        
+        # Update histogram
+        histogram = updated_histogram
+        
+        # Hitung distribusi kumulatif
+        cumulative_distribution = np.cumsum(histogram)
+        
+        # Temukan indeks threshold berdasarkan parameter rho
+        threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
+        threshold = bin_edges[threshold_index]
+        
+        # Tentukan apakah alarm aktif
+        alarm = scores[j] >= threshold
+        
+        # Simpan hasil
+        results.append({
+            "Session": j + 1, 
+            "Score": scores[j], 
+            "Threshold": threshold, 
+            "Alarm": alarm
+        })
     
     return results
-results = process_session(second_scores)
-        
+results = dynamic_threshold_optimization(second_scores)
+for result in results:
+    print(f"Sesi {result['Session']}: Skor {result['Score']}, Threshold {result['Threshold']}, Alarm {result['Alarm']}")
 # print(json.dumps(hasil_agregasi, indent=4))
-print(second_scores)
-print(f"std = {np.std(second_scores)}")
+# print(second_scores)
+# print(f"std = {np.std(second_scores)}")
