@@ -8,6 +8,7 @@ import matplotlib.dates as mdates
 import pandas as pd
 import numpy as np
 from collections import defaultdict
+import statistics
 # To support import export module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_connection import create_connection
@@ -206,7 +207,7 @@ def hitung_skor_agregasi(hasil_skor):
     return hasil_agregasi
 
 hasil_skor_agregasi = hitung_skor_agregasi(hasil_perhitungan)
-print(json.dumps(hasil_agregasi, indent=4))
+# print(json.dumps(hasil_agregasi, indent=4))
 # ========================== IMPLEMENTASI SDNML ==========================
 
 """
@@ -242,31 +243,28 @@ def create_X_t(x_t, order):
         X_t[t - order] = x_t[t - order:t][::-1]
     return X_t
 
-# Bentuk X_t berdasarkan data x_t
 order = 2 
 m = 0
 X_t = create_X_t(x_t, order=order)
 print(f"Nilai x_bar_t = {X_t}")
 
-# Inisialisasi matriks V0 dan M0
 V0 = np.identity(order)
 M0 = np.zeros(order)
-# print(M0)
-# Fungsi untuk memperbarui V_t dan M_t dengan identitas Sherman-Morrison-Woodbury
-def update_matrices(V_prev_inv, M_prev, x_t, xt):
+
+def update_matrices(V_prev_inv, M_prev, x_t, xt, r=0.0005):
     x_t = x_t[:, np.newaxis] 
-    c_t = r * x_t.T @ V_prev_inv @ x_t
-    V_t = (1 / (1 - r)) * V_prev_inv - (r / (1 - r)) * (V_prev_inv @ np.outer(x_t, x_t) @ V_prev_inv) / (1 - r + c_t)
+    c_t = r * (x_t.T @ V_prev_inv @ x_t)
+    V_t = (1 / (1 - r)) * V_prev_inv - (r / (1 - r)) * (V_prev_inv @ np.outer(x_t.flatten(), x_t) @ V_prev_inv) / (1 - r + c_t)
     M_t = (1 - r) * M_prev + r * x_t.flatten() * xt
-    # print(f"--- perhitungan Vt ---")
-    # print(M_t)
+    print("V_t dan M_t:")
     # print(V_t)
-    # print("----------")
+    # print("\nM_t:")
+    # print(M_t)
     # print("\n")
+    
     return V_t, M_t, c_t.item()
 
 V_inv = V0
-# print(V_inv)
 M = M0
 d_t = []
 
@@ -275,38 +273,31 @@ for t in range(len(X_t)):
     d_t_value = c_t / (1 - r + c_t)  
     d_t.append(d_t_value)
     # print(V_inv)
-
 V = V_inv
-
 A_t = np.dot(V, M)
-# print(A_t)
+print(A_t)
 print("--- d_t")
 print(d_t)
-# Hitung residuals (sisa) e_t
+
 e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
 print("--- e_t ---")
-print(x_t[0 + 3])
 print(e_t)
-tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i + 1)]) for i in range(m+1, len(X_t))]
-print(len(tau_t))
-print(len(X_t))
+tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t))]
 print("--- tau_t ---")
 print(tau_t)
+
 length_st = len(X_t) - (order+1)
 s_t = [(i - m) * tau_t[i] for i in range(m+1, length_st)]
 print("--- s_t ---")
-print(length_st)
-print(len(s_t))
 print(s_t)
-K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t))]
-# K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t) - 1)]
+
+K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t))]
 print("--- K_t ---")
 print(K_t)
+
 length_firstLayer = length_st - (order+1)
 p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer)]
-# p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i - m) / 2) / s_t[i - 1]**(-(i - m - 1) / 2)) for i in range(1, len(s_t))]
 print("--- psdnml ---")
-print((s_t[1]**(-(t - m) / 2) / s_t[1 - 1]**(-(t - m - 1) / 2)))
 print(p_SDNML)
 
 print("--- first score stage ---")
@@ -319,7 +310,6 @@ log_p_SDNML = [
     -np.log(p_SDNML[i]) 
     for i in range(len(p_SDNML))
 ]
-print(log_p_SDNML)
 first_scores = []
 for t in range(len(log_p_SDNML)):
         score = log_p_SDNML[t]
@@ -371,9 +361,9 @@ M_second = M0_second
 print("--- d_t second ---")
 d_t_second = []
 for t in range(len(X_t_second)):
-    V_inv_second, M_second, c_t_second = update_matrices(V_inv_second, M_second, X_t_second[t], x_t[t + order])
-    d_t_value = c_t_second / (1 - r + c_t_second)
-    d_t_second.append(d_t_value)
+    V_inv_second, M_second, c_t_second = update_matrices(V_inv_second, M_second, X_t_second[t], x_t_second[t + order])
+    d_t_value_second = c_t_second / (1 - r + c_t_second)
+    d_t_second.append(d_t_value_second)
 print(d_t_second)
 
 A_t_second = np.dot(V_inv_second, M_second)
@@ -405,14 +395,14 @@ Langkah - langkahnya :
     1. mencari nilai Second Score Learn melalui log_p_SDNML_second dengan mencari -nilai log dari p_SDNML_second (Second Learn)
 """
 log_p_SDNML_second = [
-    -np.log(np.abs(p_SDNML_second[i])) 
+    -np.log(p_SDNML_second[i]) 
     for i in range(len(p_SDNML_second))
 ]
-
-print(p_SDNML_second[0])
-print(-np.log(p_SDNML_second[0]))
 print(log_p_SDNML_second)
+
 second_scores = log_p_SDNML_second
+smoothed_scores = apply_smoothing(second_scores, T)
+yscore = np.array(smoothed_scores)
 
 
 """
@@ -430,6 +420,7 @@ Langkah akhir: Implementasi Dynamic Threshold Optimation (DTO)
     8. Threshold optimization diatur oleh threshold_index 
     9. Alarm output diatur pada variabel alarm
 """
+
 def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
     """
     Implementasi Dynamic Threshold Optimization (DTO) dalam satu fungsi
@@ -445,41 +436,51 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=
     - results: List dictionary berisi hasil untuk setiap sesi
     """
     # Inisialisasi bin
-    a = np.mean(scores) + 2 * np.std(scores)  
-    b = np.min(scores)  
-    bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
+    print(f"scores = {scores}")
+    a = np.mean(scores) + 2 * np.std(scores)
+    print(f"debug = {np.mean(scores)} dari {scores}")
+    filtered_scores = scores[scores > a]
+    if filtered_scores.size > 0:
+        b = np.min(filtered_scores)
+    else:
+        b = np.min(filtered_scores)  
     
-    # Inisialisasi histogram uniform
+    print(f"a = {a}")
+    print(f"b = {b}")
+
+
+    bin_edges = [-np.inf, a] + [a + (b - a) / (NH - 2) * i for i in range(NH - 3)] + [np.inf]
+    print(bin_edges)
+    bin_edges = np.sort(bin_edges)  
+    
     histogram = np.ones(NH) / NH
-    
+    print(f"histogram awal  = {histogram}")
     results = []
     
     M = len(scores)
     for j in range(M - 1):
         bin_index = np.digitize(scores[j], bin_edges) - 1
+        # print(f"bindex = {bin_index} \n")
         
         updated_histogram = np.zeros_like(histogram)
-        
         for h in range(len(histogram)):
             if h == bin_index:
                 updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
+                # print(f"iterasi {h} || 1 - {r_H} * {histogram[h] + r_H} = {updated_histogram[h]}\n")
             else:
                 updated_histogram[h] = (1 - r_H) * histogram[h]
-        
-        # Normalisasi dengan parameter lambda
-        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
-        
-        # Update histogram
+                # print(f"iterasi {h} --- 1 - {r_H} * {histogram[h] + r_H} = {updated_histogram[h]}\n")
+
+        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + NH * lambda_H)
+        # print(updated_histogram)
         histogram = updated_histogram
-        
-        # Hitung distribusi kumulatif
+        # print(f"histo di to = {histogram}")
         cumulative_distribution = np.cumsum(histogram)
+        # print(f"cumu_dist = {cumulative_distribution}")
         
-        # Temukan indeks threshold berdasarkan parameter rho
         threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
         threshold = bin_edges[threshold_index]
         
-        # Tentukan apakah alarm aktif
         alarm = scores[j] >= threshold
         
         # Simpan hasil
@@ -491,9 +492,10 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=
         })
     
     return results
-results = dynamic_threshold_optimization(second_scores)
+
+results = dynamic_threshold_optimization(yscore)
+# print(f"yscore = {yscore}")
 for result in results:
     print(f"Sesi {result['Session']}: Skor {result['Score']}, Threshold {result['Threshold']}, Alarm {result['Alarm']}")
-# print(json.dumps(hasil_agregasi, indent=4))
-# print(second_scores)
-# print(f"std = {np.std(second_scores)}")
+print("second_scores:", second_scores)
+print(f"std = {np.std(second_scores)}")
