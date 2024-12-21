@@ -229,12 +229,9 @@ Langkah - langkahnya :
         e. mencari nilai first layer learn dengan fungsi kepadatan p_SDNML 
 """
 r = 0.0005
-# print(json.dumps(hasil_agregasi, indent=4))
 aggregation_scores = np.array([entry["s_x"] for entry in hasil_agregasi])
 print(f"agregasi = {aggregation_scores}")
-
 x_t = aggregation_scores
-
 
 def create_X_t(x_t, order):
     n = len(x_t)
@@ -267,7 +264,7 @@ def update_matrices(V_prev_inv, M_prev, x_t, xt, r=0.0005):
 V_inv = V0
 M = M0
 d_t = []
-
+print(x_t[0 + order])
 for t in range(len(X_t)):
     V_inv, M, c_t = update_matrices(V_inv, M, X_t[t], x_t[t + order])
     d_t_value = c_t / (1 - r + c_t)  
@@ -286,16 +283,18 @@ tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i+1)]) for i in rang
 print("--- tau_t ---")
 print(tau_t)
 
-length_st = len(X_t) - (order+1)
+length_st = len(tau_t)
 s_t = [(i - m) * tau_t[i] for i in range(m+1, length_st)]
 print("--- s_t ---")
+print(tau_t[m+1])
 print(s_t)
 
 K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t))]
 print("--- K_t ---")
+print(d_t[0+1])
 print(K_t)
 
-length_firstLayer = length_st - (order+1)
+length_firstLayer = len(s_t)
 p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer)]
 print("--- psdnml ---")
 print(p_SDNML)
@@ -317,6 +316,7 @@ for t in range(len(log_p_SDNML)):
         # print(f"Panjang kode SDNML untuk x_{t + 1}: {score}")
 print(first_scores)
 
+
 print("--- Smoothing ---")
 """
 Langkah 3: Smoothing
@@ -333,11 +333,25 @@ def apply_smoothing(scores, T):
     smoothed_scores = []
     for t in range(T - 1, len(scores)):  
         smoothed_score = np.mean(scores[t-T+1:t+1])  
+        print(f"indeks {scores[t]}, = {scores[t-T+1:t+1]}")
         smoothed_scores.append(smoothed_score)
     return smoothed_scores
 T = 2  
 smoothed_scores = apply_smoothing(first_scores, T)
-print(smoothed_scores)
+
+# Informasi agregasi setelah smoothing tahap 1
+# started_indeks = order*order+T
+
+# start_value_smoothed = smoothed_scores[0]
+# start_value_hasil_agregasi = hasil_agregasi[started_indeks-1]
+# started_indeks = hasil_agregasi.index(start_value_hasil_agregasi)
+
+# end_index = len(hasil_agregasi)-1
+
+# for i in range(started_indeks, end_index):
+#     relative_index = i - started_indeks
+#     hasil_agregasi[i]['first_layer'] = first_scores[relative_index]
+# print(smoothed_scores)
 
 
 print("--- Second Learning Stage ---")
@@ -352,6 +366,7 @@ Langkah - langkahnya :
 
 X_t_second = create_X_t(smoothed_scores, order=order)
 x_t_second = smoothed_scores
+
 V0_second = np.identity(order)
 M0_second = np.zeros(order)
 
@@ -376,15 +391,17 @@ tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)])
 print(tau_t_second)
 
 print("--- s_t_second ---")
-length_st_second = len(X_t_second) - (order+1)
+length_st_second = len(tau_t_second)
 s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, length_st_second)]
+print(tau_t_second[m+1])
 print(s_t_second)
 
 print("--- kt_second ---")
 K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
 print(K_t_second)
 
-length_second_learn = length_st_second - (order+1)
+print("--- PSDNML second ---")
+length_second_learn = len(s_t_second)
 p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_second_learn)]
 print(p_SDNML_second)
 
@@ -401,9 +418,17 @@ log_p_SDNML_second = [
 print(log_p_SDNML_second)
 
 second_scores = log_p_SDNML_second
-smoothed_scores = apply_smoothing(second_scores, T)
-yscore = np.array(smoothed_scores)
+print("--- smoothing ---")
+smoothed_second_scores = apply_smoothing(second_scores, T)
+yscore = np.array(smoothed_second_scores)
+print(yscore)
 
+end_index = len(hasil_agregasi)-(order+1)
+start_index_second_smoothed = (order * order * T) + T - 1
+print(start_index_second_smoothed)
+for i in range(start_index_second_smoothed, end_index):
+    relative_index = i - start_index_second_smoothed
+    hasil_agregasi[i]['yscore'] = yscore[relative_index]
 
 """
 Langkah akhir: Implementasi Dynamic Threshold Optimation (DTO)
@@ -492,10 +517,32 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=
         })
     
     return results
-
 results = dynamic_threshold_optimization(yscore)
-# print(f"yscore = {yscore}")
+print(json.dumps(hasil_agregasi, indent=4))
+for result in results:
+    if result['Alarm']:
+        matching_data = next((item for item in hasil_agregasi if item.get('yscore') == result['Score']), None)
+
+        if matching_data:
+            result['Diskrit'] = matching_data['diskrit']
+            result['Waktu_Awal'] = matching_data['waktu_awal']
+            result['Waktu_Akhir'] = matching_data['waktu_akhir']
+waktu_awal = ""
+waktu_akhir = ""
 for result in results:
     print(f"Sesi {result['Session']}: Skor {result['Score']}, Threshold {result['Threshold']}, Alarm {result['Alarm']}")
-print("second_scores:", second_scores)
-print(f"std = {np.std(second_scores)}")
+    if 'Diskrit' in result:
+        waktu_awal = result['Waktu_Awal']
+        waktu_akhir = result['Waktu_Akhir']
+        print(f"Diskrit {result['Diskrit']} | Waktu Awal: {result['Waktu_Awal']} | Waktu Akhir: {result['Waktu_Akhir']}")
+        print("\n")
+
+connections = create_connection()
+cursors = connections.cursor()
+
+query = f"SELECT full_text FROM data_preprocessed WHERE created_at BETWEEN '{waktu_awal}' AND '{waktu_akhir}'"
+cursors.execute(query)
+
+hasil_twitt_trending = cursors.fetchall()
+with open('hasil_twitt_trending.json', 'w') as file:
+    json.dump(hasil_twitt_trending, file)

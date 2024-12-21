@@ -841,8 +841,9 @@ pelatda	pemusatan latihan daerah
 pelatnas	pemusatan latihan nasional
 pembokat	pembantu
 pemda	pemerintah daerah
-pemilu	pemilu
 pemkot	pemerintah kota
+pemilu	pemilu
+milu	pemilu
 pemprov	pemerintah provinsi
 pemred	pemimpin redaksi
 pengen	ingin
@@ -1349,3 +1350,5 @@ kpu	kpud
 bujer	buzzer
 pasang calon	paslon
 ta	iya
+war	perang
+warnya	perang

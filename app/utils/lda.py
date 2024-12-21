@@ -1,6 +1,7 @@
 import random
 from collections import Counter
 import nltk
+import json
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import string
@@ -239,22 +240,19 @@ def main():
 
 
 if __name__ == '__main__':
-    data = [
-        "Perubahan iklim berdampak pada peningkatan suhu global dan cuaca ekstrem.",
-        "Kemajuan dalam kecerdasan buatan mengubah industri dari kesehatan hingga keuangan.",
-        "Pasar saham mengalami penurunan tajam bulan ini karena ketidakpastian ekonomi.",
-        "Sumber energi terbarukan seperti tenaga angin dan matahari semakin efektif biaya.",
-        "Pemilihan umum lokal semakin memanas saat kandidat bersiap untuk debat mendatang.",
-        "Industri teknologi melihat lonjakan inovasi dengan munculnya startup baru di Silicon Valley.",
-        "Kekhawatiran tentang privasi dan perlindungan data berada di garis depan regulasi baru dalam pemasaran digital.",
-        "Temukan praktik terbaik untuk pertanian berkelanjutan dan produksi pangan lokal.",
-        "Pembicaraan damai bersejarah dimulai antara negara-negara tetangga setelah puluhan tahun konflik.",
-        "Industri film beradaptasi dengan layanan streaming, mempengaruhi bioskop tradisional.",
-    ]
+    with open('hasil_twitt_trending.json', 'r') as file:
+        hasil_twitt_trending = json.load(file)
 
+    dat_transform = [item[0] for item in hasil_twitt_trending]
+    result = [f'"{text.strip()}"' for text in dat_transform]
+    formatted_output = ",\n".join(result)
+
+    data = formatted_output
+
+    data = dat_transform  # Gunakan data asli untuk tokenisasi
     tokenized_data = tokenize_data(data)
 
-    K = 2
+    K = 5
     max_iteration = 1000
     topic_word_counts, document_topic_counts, document_lengths, topic_counts, W = run_lda(
         tokenized_data, K, max_iteration)
@@ -265,3 +263,5 @@ if __name__ == '__main__':
     for topic, words in topic_word_list.items():
         formatted_words = [f"{word}: {weight:.4f}" for word, weight in words]
         print(f"{topic}: {', '.join(formatted_words)}")
+
+
