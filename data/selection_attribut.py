@@ -5,14 +5,10 @@ from dotenv import load_dotenv
 import os
 import logging
 
-# Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 
-# Load environment variables
 load_dotenv()
-
-# Database configuration
 db_config = {
     'host': os.getenv("DB_HOST", "127.0.0.1"),
     'user': os.getenv("DB_USER", "root"),
@@ -20,7 +16,6 @@ db_config = {
     'database': os.getenv("DB_NAME", "db_ta")
 }
 
-# Function to load data from the database
 def load_data():
     connection = mysql.connector.connect(**db_config)
     query = "SELECT created_at, username, full_text FROM data_twitter"
@@ -28,23 +23,16 @@ def load_data():
     connection.close()
     return df
 
-# Function to extract mentions and count them
 def process_mentions(df):
-    # Menambahkan kolom `mentions` dan `jumlah_mention`
     df['mentions'] = df['full_text'].apply(lambda x: ','.join(re.findall(r'@\w+', x)))
     df['jumlah_mention'] = df['mentions'].apply(lambda x: len(x.split(',')) if x else 0)
-    
-    # Filter hanya tweet yang memiliki mention
     df = df[df['jumlah_mention'] > 0]
     
     return df
 
-# Function to save the processed data to the new table
 def save_to_database(df):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
-
-    # Membuat tabel `data_preprocessed` jika belum ada
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS data_preprocessed (
             id INT AUTO_INCREMENT PRIMARY KEY,

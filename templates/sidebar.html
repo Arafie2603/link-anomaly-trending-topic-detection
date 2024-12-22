@@ -22,7 +22,7 @@
 
     <!-- Nav Item - Scraping / Import Data -->
     <li class="nav-item {% if request.path == '/import' %}active{% endif %}">
-        <a class="nav-link" href="=">
+        <a class="nav-link" href="{{ url_for('core.page_import_data') }}">
             <i class="fas fa-fw fa-magnifying-glass"></i>
             <span>Import Data</span></a>
     </li>

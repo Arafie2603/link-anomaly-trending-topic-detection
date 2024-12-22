@@ -69,9 +69,77 @@
         </div>
     </div>
 </div>
-{% endblock %}
+
+<div class="pagination-controls">
+    <button id="firstPage" class="btn btn-secondary">First</button>
+    <button id="prevPage" class="btn btn-secondary">Previous</button>
+    <span id="pageInfo">Page 1</span>
+    <button id="nextPage" class="btn btn-secondary">Next</button>
+    <button id="lastPage" class="btn btn-secondary">Last</button>
+</div>
+
 
 {% block javascript %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let currentPage = 1;
+    const perPage = 10; // Jumlah data per halaman
+
+    function fetchData(page) {
+        fetch(`/api/preprocessing?page=${page}&per_page=${perPage}`)
+            .then(response => response.json())
+            .then(data => {
+                // Memperbarui total data
+                document.getElementById("totalData").textContent = data.total_count;
+
+                // Memperbarui tabel
+                const dataTable = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
+                dataTable.innerHTML = ""; // Menghapus isi tabel sebelumnya
+                data.data.forEach(row => {
+                    const newRow = dataTable.insertRow();
+
+                    newRow.insertCell(0).textContent = row.id;
+                    newRow.insertCell(1).textContent = row.created_at;
+                    newRow.insertCell(2).textContent = row.username;
+                    newRow.insertCell(3).textContent = row.full_text;
+                    newRow.insertCell(4).textContent = row.jumlah_mention;
+                    newRow.insertCell(5).textContent = row.mentions;
+                });
+
+                // Update page info
+                currentPage = data.page;
+                document.getElementById("pageInfo").textContent = `Page ${currentPage} of ${data.total_pages}`;
+
+                // Disable/enable navigation buttons
+                document.getElementById("firstPage").disabled = currentPage === 1;
+                document.getElementById("prevPage").disabled = currentPage === 1;
+                document.getElementById("nextPage").disabled = currentPage === data.total_pages;
+                document.getElementById("lastPage").disabled = currentPage === data.total_pages;
+            })
+            .catch(error => console.error("Error fetching data:", error));
+    }
+
+    // Event listeners for navigation buttons
+    document.getElementById("firstPage").addEventListener("click", () => fetchData(1));
+    document.getElementById("prevPage").addEventListener("click", () => fetchData(currentPage - 1));
+    document.getElementById("nextPage").addEventListener("click", () => fetchData(currentPage + 1));
+    document.getElementById("lastPage").addEventListener("click", () => {
+        fetch(`/api/preprocessing?per_page=${perPage}`)
+            .then(response => response.json())
+            .then(data => fetchData(data.total_pages));
+    });
+
+    // Fetch initial data
+    fetchData(currentPage);
+});
+
+
+</script>
+{% endblock %}
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 
