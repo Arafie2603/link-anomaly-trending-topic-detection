@@ -4,6 +4,7 @@ from data.convert_to_database import TwitterDataProcessor
 from data.preprocessing import Preprocessor
 from app.utils.pool_manager import PoolManager
 from app.utils.extensions import socketio
+import mysql
 import os
 import pandas as pd
 core_bp = Blueprint("core", __name__, url_prefix="/")
@@ -225,3 +226,65 @@ def cancel_preprocessing():
         return jsonify({"message": "Preprocessing cancelled successfully"}), 200
     else:
         return jsonify({"error": "No active preprocessing"}), 400
+    
+
+@core_bp.route("/api/deleted_preprocessing_data", methods=['POST'])
+def deleted_preprocessing_data():
+    """
+    Menghapus semua data yang telah dipra-proses dari database.
+
+    Return:
+    - JSON: Respon berisi pesan keberhasilan atau kesalahan.
+    """
+    db = None
+    cursor = None
+    try:
+        db = create_connection()
+        cursor = db.cursor()
+        
+        # Check if table exists first
+        cursor.execute("SHOW TABLES LIKE 'data_preprocessed'")
+        if not cursor.fetchone():
+            return jsonify({
+                "error": "Table data_preprocessed does not exist"
+            }), 404
+
+        # Check if there's data to delete
+        cursor.execute("SELECT COUNT(*) FROM data_preprocessed")
+        count = cursor.fetchone()[0]
+        if count == 0:
+            return jsonify({
+                "message": "No data to delete"
+            }), 200
+
+        cursor.execute("DELETE FROM data_preprocessed")
+        db.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Successfully deleted data",
+            "rows_affected": count
+        }), 200
+
+    except mysql.connector.Error as e:
+        if db:
+            db.rollback()
+        return jsonify({
+            "error": f"Database error: {str(e)}"
+        }), 500
+    except Exception as e:
+        if db:
+            db.rollback()
+        return jsonify({
+            "error": f"Unexpected error: {str(e)}"
+        }), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if db and db.is_connected():
+            db.close()
+
+# Also, make sure your blueprint is registered correctly in your app:
+# app.register_blueprint(core_bp, url_prefix='/api')  # If you're using a prefix
+# or
+# app.register_blueprint(core_bp)  # If not using a prefix

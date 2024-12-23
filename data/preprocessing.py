@@ -154,14 +154,21 @@ class Preprocessor:
                 );""")
             self.connection.commit()
 
-            for row in processed_data:
+            # Filter out records with no mentions or zero mentions
+            filtered_data = [
+                row for row in processed_data 
+                if row[3] and row[3].strip() and row[4] > 0  # Check if mentions exist and jumlah_mention > 0
+            ]
+
+            for row in filtered_data:
                 cursor.execute("""
                     INSERT INTO data_preprocessed (created_at, username, full_text, mentions, jumlah_mention)
                     VALUES (%s, %s, %s, %s, %s)
                 """, row)
             
             self.connection.commit()
-            logger.info(f"Berhasil menyimpan {len(processed_data)} tweet ke tabel data_preprocessed.")
+            logger.info(f"Berhasil menyimpan {len(filtered_data)} tweet dengan mentions ke tabel data_preprocessed.")
+            logger.info(f"Sebanyak {len(processed_data) - len(filtered_data)} tweet tanpa mentions dilewati.")
         finally:
             cursor.close()
 

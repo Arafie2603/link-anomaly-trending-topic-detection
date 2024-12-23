@@ -83,24 +83,32 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
-
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         let currentPage = 1;
         const perPage = 10;
 
         function fetchData(page) {
-            fetch(`/api/preprocessing_data?page=${page}&per_page=${perPage}`)
-                .then(response => response.json())
+            fetch(`/api/preprocessing?page=${page}&per_page=${perPage}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     document.getElementById("totalData").textContent = data.total_count;
+
                     const dataTable = document.getElementById("dataTable").getElementsByTagName('tbody')[0];
                     dataTable.innerHTML = "";
+
                     data.data.forEach(row => {
                         const newRow = dataTable.insertRow();
 
+                        const created_at = new Date(row.created_at).toLocaleString();
+
                         newRow.insertCell(0).textContent = row.id;
-                        newRow.insertCell(1).textContent = row.created_at;
+                        newRow.insertCell(1).textContent = created_at;
                         newRow.insertCell(2).textContent = row.username;
                         newRow.insertCell(3).textContent = row.full_text;
                         newRow.insertCell(4).textContent = row.jumlah_mention;
@@ -115,22 +123,17 @@
                     document.getElementById("nextPage").disabled = currentPage === data.total_pages;
                     document.getElementById("lastPage").disabled = currentPage === data.total_pages;
                 })
-                .catch(error => console.error("Error fetching data:", error));
+                .catch(error => {
+                    console.error("Error fetching data:", error);
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to fetch data: ' + error.message,
+                        icon: 'error'
+                    });
+                });
         }
 
-        document.getElementById("firstPage").addEventListener("click", () => fetchData(1));
-        document.getElementById("prevPage").addEventListener("click", () => fetchData(currentPage - 1));
-        document.getElementById("nextPage").addEventListener("click", () => fetchData(currentPage + 1));
-        document.getElementById("lastPage").addEventListener("click", () => {
-            fetch(`/api/preprocessing_data?per_page=${perPage}`)
-                .then(response => response.json())
-                .then(data => fetchData(data.total_pages));
-        });
-
-        fetchData(currentPage);
-
-
-        document.getElementById("startDeletion").addEventListener("click", () => {
+        function handleDeletion() {
             Swal.fire({
                 title: 'Konfirmasi Penghapusan',
                 text: 'Apakah Anda yakin ingin menghapus semua data?',
@@ -142,139 +145,136 @@
                 cancelButtonText: 'Batal'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    fetch("/api/delete_preprocessing_data", { method: "DELETE" })
-                        .then(response => response.json())
+                    fetch("{{ url_for('core.deleted_preprocessing_data') }}", {
+                        method: "POST",
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    try {
+                                        return JSON.parse(text);
+                                    } catch (e) {
+                                        throw new Error('Server error: ' + text);
+                                    }
+                                });
+                            }
+                            return response.json();
+                        })
                         .then(data => {
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
                             Swal.fire(
                                 'Terhapus!',
                                 'Semua data telah dihapus.',
                                 'success'
                             );
-                            fetchData(1);  // Reload data after deletion
+                            fetchData(1);
                         })
                         .catch(error => {
+                            console.error('Delete error:', error);
                             Swal.fire(
                                 'Gagal!',
-                                `Gagal menghapus data: ${error}`,
+                                'Gagal menghapus data: ' + error.message,
                                 'error'
                             );
                         });
                 }
             });
+        }
+
+        document.getElementById("startDeletion").addEventListener("click", handleDeletion);
+
+        document.getElementById("firstPage").addEventListener("click", () => fetchData(1));
+        document.getElementById("prevPage").addEventListener("click", () => fetchData(currentPage - 1));
+        document.getElementById("nextPage").addEventListener("click", () => fetchData(currentPage + 1));
+        document.getElementById("lastPage").addEventListener("click", () => {
+            fetch(`/api/preprocessing?per_page=${perPage}`)
+                .then(response => response.json())
+                .then(data => fetchData(data.total_pages))
+                .catch(error => console.error("Error fetching total pages:", error));
         });
-    });
 
-    var socket = io();
+        fetchData(currentPage);
 
-    socket.on('progress_cleansing_stemming', function (data) {
-        var progress = Math.round((data.current / data.total) * 100);
-        $('#progressBarCleansingStemming').css('width', progress + '%');
-        $('#progressText').html('Cleansing & Stemming Progress: <b style="color: green;">' + progress + '%</b><br>' +
-            'Data yang diproses: ' + data.current + ' dari ' + data.total + '<br>' +
-            'ETA: ' + data.eta);
-    });
+        var socket = io();
 
-    socket.on('progress_complete', function (data) {
-        Swal.fire({
-            title: 'Selesai!',
-            text: 'Preprocessing telah berhasil dilakukan.',
-            confirmButtonText: 'Lihat Hasil',
-            icon: 'success'
-        }).then(function () {
-            fetchData(1);
+        socket.on('progress_cleansing_stemming', function (data) {
+            var progress = Math.round((data.current / data.total) * 100);
+            document.getElementById('progressBarCleansingStemming').style.width = progress + '%';
+            document.getElementById('progressText').innerHTML = `Cleansing & Stemming Progress: <b style="color: green;">${progress}%</b><br>Data yang diproses: ${data.current} dari ${data.total}<br>ETA: ${data.eta}`;
         });
-    });
 
-    socket.on('progress_error', function (data) {
-        Swal.fire({
-            title: 'Gagal!',
-            text: 'Gagal melakukan preprocessing.',
-            icon: 'error'
+        socket.on('progress_complete', function () {
+            Swal.fire({
+                title: 'Selesai!',
+                text: 'Preprocessing telah berhasil dilakukan.',
+                confirmButtonText: 'Lihat Hasil',
+                icon: 'success'
+            }).then(() => fetchData(1));
         });
-    });
 
-    $('#startPreprocessing').click(function () {
-        $.ajax({
-            url: "{{ url_for('core.checking_data_preprocessed') }}",
-            type: "GET",
-            success: function (response) {
-                if (response.exists) {
-                    Swal.fire({
-                        title: 'Peringatan!',
-                        text: 'Data sudah ada di tabel preprocessing. Harap bersihkan data sebelum menjalankan preprocessing lagi.',
-                        icon: 'warning',
-                        confirmButtonText: 'Oke'
-                    });
-                } else {
-                    Swal.fire({
-                        title: "Mulai Preprocessing",
-                        text: "Tekan 'Mulai' untuk memulai preprocessing",
-                        html: '<div id="progressBarContainerCleansingStemming" style="width: 100%; background-color: #ddd;">' +
-                            '<div id="progressBarCleansingStemming" style="width: 0%; height: 20px; background-color: #4CAF50;"></div></div>' +
-                            '<p id="progressText">Cleansing & Stemming Progress: <b style="color: green;">0%</b><br>' +
-                            'Data yang diproses: 0 dari --<br>' +
-                            'ETA: --:--:--</p>',
-                        icon: 'info',
-                        showCancelButton: false,
-                        showDenyButton: true,
-                        denyButtonText: "Batal",
-                        confirmButtonText: "Mulai",
-                        cancelButtonText: "Batal",
-                        showLoaderOnConfirm: true,
-                        allowOutsideClick: () => !Swal.isLoading(),
-                        preConfirm: () => {
-                            Swal.showLoading();
-                            Swal.getCancelButton().removeAttribute('disabled');
-                            Swal.getDenyButton().removeAttribute('disabled');
-                            const startTime = new Date();
-                            return new Promise((resolve, reject) => {
-                                $.ajax({
-                                    url: "{{ url_for('core.run_preprocessing_route') }}",
-                                    type: "POST",
-                                    success: function (response) {
-                                        const endTime = new Date();
-                                        const duration = new Date(endTime - startTime);
-                                        const formattedDuration = [
-                                            duration.getUTCHours().toString().padStart(2, '0'),
-                                            duration.getUTCMinutes().toString().padStart(2, '0'),
-                                            duration.getUTCSeconds().toString().padStart(2, '0')
-                                        ].join(':');
-                                        response.duration = formattedDuration;
-                                        resolve(response);
-                                    },
-                                    error: function (xhr, status, error) {
-                                        reject(new Error('Gagal melakukan preprocessing: ' + error));
-                                    }
+        socket.on('progress_error', function () {
+            Swal.fire({
+                title: 'Gagal!',
+                text: 'Gagal melakukan preprocessing.',
+                icon: 'error'
+            });
+        });
+
+        document.getElementById("startPreprocessing").addEventListener("click", function () {
+            $.ajax({
+                url: "{{ url_for('core.checking_data_preprocessed') }}",
+                type: "GET",
+                success: function (response) {
+                    if (response.exists) {
+                        Swal.fire({
+                            title: 'Peringatan!',
+                            text: 'Data sudah ada di tabel preprocessing. Harap bersihkan data sebelum menjalankan preprocessing lagi.',
+                            icon: 'warning',
+                            confirmButtonText: 'Oke'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: "Mulai Preprocessing",
+                            text: "Tekan 'Mulai' untuk memulai preprocessing",
+                            html: `<div id="progressBarContainerCleansingStemming" style="width: 100%; background-color: #ddd;">
+                                    <div id="progressBarCleansingStemming" style="width: 0%; height: 20px; background-color: #4CAF50;"></div></div>
+                            <p id="progressText">Cleansing & Stemming Progress: <b style="color: green;">0%</b><br>
+                                    Data yang diproses: 0 dari --<br>
+                                    ETA: --:--:--</p>`,
+                            icon: 'info',
+                            showCancelButton: false,
+                            showDenyButton: true,
+                            denyButtonText: "Batal",
+                            confirmButtonText: "Mulai",
+                            showLoaderOnConfirm: true,
+                            preConfirm: () => {
+                                return new Promise((resolve, reject) => {
+                                    $.ajax({
+                                        url: "{{ url_for('core.run_preprocessing_route') }}",
+                                        type: "POST",
+                                        success: resolve,
+                                        error: reject
+                                    });
                                 });
-                            }).catch(error => {
-                                Swal.showValidationMessage(`Permintaan gagal: ${error}`);
-                                Swal.hideLoading();
-                            });
-                        },
-                        allowOutsideClick: () => !Swal.isLoading()
-                    }).then((result) => {
-                        if (result.isDenied) {
-                            $.ajax({
-                                url: "{{ url_for('core.cancel_preprocessing') }}",
-                                type: "POST",
-                                success: function (response) {
-                                    Swal.fire('Dibatalkan', 'Preprocessing dibatalkan.', 'info');
-                                },
-                                error: function (xhr) {
-                                    console.error("Failed to cancel preprocessing", xhr);
-                                }
-                            });
-                        }
-                    });
+                            },
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error saat memeriksa keberadaan data: " + error);
                 }
-            },
-            error: function (xhr, status, error) {
-                console.error("Error saat memeriksa keberadaan data: " + error);
-            }
+            });
         });
     });
 
 </script>
+
 {% endblock %}
 
 

@@ -6,15 +6,13 @@ import pytz
 from datetime import datetime
 import sys
 import logging
-# To support import export module
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.utils.db_connection import create_connection
 
-# Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 
-# Load environment variables
 load_dotenv()
 
 
@@ -53,18 +51,15 @@ class TwitterDataProcessor:
     def insert_data(self, connection, df: pd.DataFrame):
         cursor = connection.cursor()
         try:
-            # Membersihkan NaN dan menggantinya dengan None
             df = df.where(pd.notnull(df), None)
 
             # Tentukan format waktu yang sesuai dengan format di CSV
             # Misalnya, jika data memiliki format 'Mon Oct 11 08:00:00 +0000 2024'
             df['created_at'] = pd.to_datetime(df['created_at'], format='%a %b %d %H:%M:%S %z %Y', errors='coerce')
             
-            # Konversi waktu dari UTC ke WIB (GMT +7), hanya pada nilai yang valid
             utc_timezone = pytz.timezone('UTC')
             wib_timezone = pytz.timezone('Asia/Jakarta')
             
-            # Drop rows where 'created_at' is NaT after parsing
             df = df.dropna(subset=['created_at'])
             
             # Lakukan konversi waktu
@@ -102,9 +97,8 @@ class TwitterDataProcessor:
             cursor.close()
 
 
-# Fungsi utama untuk menjalankan proses
 def main():
-    connection = create_connection()  # Menggunakan fungsi langsung untuk mendapatkan koneksi
+    connection = create_connection()  
 
     filename = "C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\tweets-data\\gabungan_tweets_10okt_8nov.csv"
     if os.path.exists(filename):
