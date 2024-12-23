@@ -1,6 +1,9 @@
 from flask import Blueprint, jsonify, render_template, current_app, Response, request
 from app.utils.db_connection import create_connection
 from data.convert_to_database import TwitterDataProcessor
+from data.preprocessing import Preprocessor
+from app.utils.pool_manager import PoolManager
+from app.utils.extensions import socketio
 import os
 import pandas as pd
 core_bp = Blueprint("core", __name__, url_prefix="/")
@@ -192,38 +195,33 @@ def upload_csv_file():
         if os.path.exists(filepath):
             os.remove(filepath)
 
+@core_bp.route("/run_preprocessing", methods=['POST'])
+def run_preprocessing_route():
+    """
+    Melakukan pra-pemrosesan data dan menyimpan hasilnya ke database.
+
+    Return:
+    - JSON: Respon berisi pesan keberhasilan atau kesalahan, dan data yang diproses.
+    """
+    preprocessor = Preprocessor(socketio)
+    result = preprocessor.run_preprocessing()
+
+    if "error" in result:
+        return jsonify(result), 500
+    else:
+        return jsonify(result), 200
+
     
+@core_bp.route("/cancel_preprocessing", methods=["POST"])
+def cancel_preprocessing():
+    """
+    Membatalkan operasi pra-pemrosesan yang sedang berlangsung.
 
-# @core_bp.route("/run_preprocessing", methods=['POST'])
-# def run_preprocessing():
-#     """
-#     Melakukan pra-pemrosesan data dan menyimpan hasilnya ke database.
-
-#     Return:
-#     - JSON: Respon berisi pesan keberhasilan atau kesalahan, dan data yang diproses.
-#     """
-#     db = create_connection()
-#     cursor = db.cursor()
-#     try:
-#         cursor.execute(
-#             "SELECT id, date, username, rawContent FROM dataset_twitter")
-#         data = cursor.fetchall()
-
-#         processed_data = preprocessing.preprocess(data)
-
-#         insert_sql = """
-#             INSERT INTO dataset_preprocessed (id, time, user_twitter, tweet, jumlah_mention, id_user_mentioned)
-#             VALUES (%s, %s, %s, %s, %s, %s)
-#         """
-#         cursor.executemany(insert_sql, processed_data)  # Batch insert
-#         db.commit()
-#         return jsonify({"success": "Data processed and stored successfully", "data": processed_data})
-
-#     except mysql.connector.Error as err:
-#         db.rollback()
-#         return jsonify({"error": "Failed to process data: {}".format(str(err))}), 500
-
-#     finally:
-#         cursor.close()
-#         db.close()
-
+    Return:
+    - JSON: Respon berisi pesan keberhasilan pembatalan atau kesalahan.
+    """
+    if PoolManager.get_pool() is not None:
+        PoolManager.terminate_pool()
+        return jsonify({"message": "Preprocessing cancelled successfully"}), 200
+    else:
+        return jsonify({"error": "No active preprocessing"}), 400

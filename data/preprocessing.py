@@ -1,15 +1,13 @@
-import mysql.connector
 import os
 import re
-from dotenv import load_dotenv
+import time
 import logging
+import mysql.connector
+from multiprocessing import Pool, Manager
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
-
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 class DatabaseConfig:
     def __init__(self):
@@ -32,6 +30,30 @@ class DatabaseConfig:
             logger.error(f"Gagal terhubung ke database: {err}")
             raise
 
+# Global variables for worker processes
+local_connection = None
+local_slangwords_dict = None
+local_stopwords = None
+local_stemmer = None
+
+def init_worker(db_config_dict, slangwords_dict, stopwords_set, stemmer_instance):
+    global local_connection, local_slangwords_dict, local_stopwords, local_stemmer
+    
+    # Initialize database connection for this worker
+    local_connection = mysql.connector.connect(
+        host=db_config_dict['host'],
+        user=db_config_dict['user'],
+        password=db_config_dict['password'],
+        database=db_config_dict['database']
+    )
+    
+    # Initialize other global variables
+    local_slangwords_dict = slangwords_dict
+    local_stopwords = stopwords_set
+    local_stemmer = stemmer_instance
+    
+    logger.info("Worker initialized successfully")
+
 def load_slangwords(connection):
     cursor = connection.cursor(dictionary=True)
     cursor.execute("SELECT kata_tidak_baku, kata_baku FROM slangwords;")
@@ -40,67 +62,183 @@ def load_slangwords(connection):
     logger.info(f"Loaded {len(slangwords)} slangwords.")
     return slangwords
 
+def process_row(args):
+    try:
+        row, progress = args
+        created_at, username, full_text = row
+        mentions, jumlah_mention = process_mentions(full_text)
+        processed_text = preprocess_text(full_text)
+        
+        # Increment progress without using get_lock()
+        progress.value += 1
+            
+        return (created_at, username, processed_text, mentions, jumlah_mention)
+    except Exception as e:
+        logger.error(f"Error in process_row: {str(e)}")
+        raise
+
+def preprocess_text(text):
+    text = case_folding(text)
+    text = cleansing(text)
+    text = replace_slangwords(text)
+    text = remove_stopwords(text)
+    text = stemming(text)
+    return text
+
 def case_folding(text):
     return text.lower()
 
 def cleansing(text):
-    text = re.sub(r'http\S+|www\S+|https\S+|@\w+|#\w+|[^a-zA-Z\s]', ' ', text) 
-    return re.sub(r'\s+', ' ', text).strip()  
+    text = re.sub(r'http\S+|www\S+|https\S+|@\w+|#\w+|[^a-zA-Z\s]', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
 
-def replace_slangwords(text, slangwords_dict):
-    original_text = text
-    sorted_slangs = sorted(slangwords_dict.keys(), key=lambda x: len(x), reverse=True)
+def process_mentions(full_text):
+    mentions = ','.join(re.findall(r'@\w+', full_text))
+    jumlah_mention = len(mentions.split(',')) if mentions else 0
+    return mentions, jumlah_mention
+
+def replace_slangwords(text):
+    if not local_slangwords_dict:
+        logger.warning("Slangwords dictionary is not initialized")
+        return text
+        
+    sorted_slangs = sorted(local_slangwords_dict.keys(), key=lambda x: len(x), reverse=True)
     for slang in sorted_slangs:
-        replacement = slangwords_dict[slang]
+        replacement = local_slangwords_dict[slang]
         escaped_slang = re.escape(slang)
         text = re.sub(rf'\b{escaped_slang}\b', replacement, text, flags=re.IGNORECASE)
-    if original_text != text:
-        logger.info(f"Original: {original_text}")
-        logger.info(f"Replaced: {text}")
     return text
 
-def remove_stopwords(text, stopwords):
-    words = text.split()
-    removed_words = [word for word in words if word in stopwords]
-    logger.info(f"Removed stopwords: {removed_words}")
-    return ' '.join([word for word in words if word not in stopwords])
-
-def stemming(text, stemmer):
-    words = text.split()
-    return ' '.join([stemmer.stem(word) for word in words])
-
-def run_preprocessing(text, connection):
-    # Inisialisasi database connection
-    db_config = DatabaseConfig()
-    connection = db_config.get_connection()
-
-    try:
-        # Muat slangwords dari database
-        slangwords_dict = load_slangwords(connection)
-        
-        # Inisialisasi StopWordRemover dan Stemmer dari Sastrawi
-        stop_factory = StopWordRemoverFactory()
-        stopwords = stop_factory.get_stop_words()
-        stopwords.update(['pak', 'moga'])
-
-        stemmer_factory = StemmerFactory()
-        stemmer = stemmer_factory.create_stemmer()
-
-        # Proses teks dengan seluruh tahapan preprocessing
-        text = case_folding(text)
-        text = cleansing(text)
-        text = replace_slangwords(text, slangwords_dict)
-        text = remove_stopwords(text, stopwords)
-        text = stemming(text, stemmer)
-
-        logger.info(f"Teks setelah preprocessing: {text}")
+def remove_stopwords(text):
+    if not local_stopwords:
+        logger.warning("Stopwords set is not initialized")
         return text
+        
+    words = text.split()
+    return ' '.join([word for word in words if word not in local_stopwords])
 
-    except Exception as e:
-        logger.error(f"Terjadi kesalahan: {e}")
-        return None
-    finally:
-        if connection.is_connected():
-            connection.close()
+def stemming(text):
+    if not local_stemmer:
+        logger.warning("Stemmer is not initialized")
+        return text
+        
+    words = text.split()
+    return ' '.join([local_stemmer.stem(word) for word in words])
+
+class Preprocessor:
+    def __init__(self, socketio):
+        self.db_config = DatabaseConfig()
+        self.connection = self.db_config.get_connection()
+        self.socketio = socketio
+        
+        # Initialize tools
+        stop_factory = StopWordRemoverFactory()
+        stemmer_factory = StemmerFactory()
+        
+        # Load resources
+        self.slangwords_dict = load_slangwords(self.connection)
+        self.stopwords = set(stop_factory.get_stop_words())
+        self.stopwords.update(['pak', 'moga'])
+        self.stemmer = stemmer_factory.create_stemmer()
+
+    def save_to_database(self, processed_data):
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("""CREATE TABLE IF NOT EXISTS data_preprocessed (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    created_at DATETIME,
+                    username VARCHAR(255),
+                    full_text TEXT,
+                    mentions TEXT,
+                    jumlah_mention INT
+                );""")
+            self.connection.commit()
+
+            for row in processed_data:
+                cursor.execute("""
+                    INSERT INTO data_preprocessed (created_at, username, full_text, mentions, jumlah_mention)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, row)
+            
+            self.connection.commit()
+            logger.info(f"Berhasil menyimpan {len(processed_data)} tweet ke tabel data_preprocessed.")
+        finally:
+            cursor.close()
+
+    def run_preprocessing(self):
+        cursor = self.connection.cursor()
+        try:
+            cursor.execute("""SELECT created_at, username, full_text FROM data_twitter""")
+            data = cursor.fetchall()
+            
+            if not data:
+                logger.warning("No data found in data_twitter table")
+                return {"error": "No data found to process"}
+
+            db_config_dict = {
+                'host': self.db_config.host,
+                'user': self.db_config.user,
+                'password': self.db_config.password,
+                'database': self.db_config.database
+            }
+
+            with Manager() as manager:
+                # Use Value for atomic operations
+                progress = manager.Value('i', 0)
+                total_items = len(data)
+                start_time = time.time()
+
+                # Create pool with explicit initialization
+                with Pool(
+                    processes=4,
+                    initializer=init_worker,
+                    initargs=(
+                        db_config_dict,
+                        self.slangwords_dict,
+                        self.stopwords,
+                        self.stemmer
+                    )
+                ) as pool:
+                    
+                    processed_data = []
+                    for result in pool.imap_unordered(process_row, [(row, progress) for row in data]):
+                        processed_data.append(result)
+                        # Calculate progress
+                        current_progress = progress.value
+                        self.send_progress_update(current_progress, total_items, start_time)
+
+                    if processed_data:
+                        self.save_to_database(processed_data)
+                        self.socketio.emit('progress_complete', {})
+                    else:
+                        logger.info("Tidak ada tweet yang valid untuk diproses.")
+
+                    return {"success": "Data processed and stored successfully", "count": len(processed_data)}
+
+        except Exception as e:
+            logger.error(f"Terjadi kesalahan dalam run_preprocessing: {str(e)}")
+            self.socketio.emit('progress_error', {'error': str(e)})
+            return {"error": f"Failed to process data: {str(e)}"}
+
+        finally:
+            cursor.close()
+            self.close_connection()
+
+    def close_connection(self):
+        if hasattr(self, 'connection') and self.connection.is_connected():
+            self.connection.close()
             logger.info("Koneksi ke database ditutup.")
 
+    def send_progress_update(self, current, total, start_time):
+        if current > 0:
+            elapsed_time = time.time() - start_time
+            eta = (elapsed_time / current) * (total - current)
+            eta_formatted = time.strftime("%H:%M:%S", time.gmtime(eta))
+        else:
+            eta_formatted = "--:--:--"
+            
+        self.socketio.emit('progress_cleansing_stemming', {
+            'current': current,
+            'total': total,
+            'eta': eta_formatted
+        })
