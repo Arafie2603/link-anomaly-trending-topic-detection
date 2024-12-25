@@ -3,10 +3,11 @@ import re
 import time
 import logging
 import mysql.connector
+import pytz
 from multiprocessing import Pool, Manager
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
-
+from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class DatabaseConfig:
@@ -30,7 +31,6 @@ class DatabaseConfig:
             logger.error(f"Gagal terhubung ke database: {err}")
             raise
 
-# Global variables for worker processes
 local_connection = None
 local_slangwords_dict = None
 local_stopwords = None
@@ -38,8 +38,7 @@ local_stemmer = None
 
 def init_worker(db_config_dict, slangwords_dict, stopwords_set, stemmer_instance):
     global local_connection, local_slangwords_dict, local_stopwords, local_stemmer
-    
-    # Initialize database connection for this worker
+
     local_connection = mysql.connector.connect(
         host=db_config_dict['host'],
         user=db_config_dict['user'],
@@ -47,7 +46,6 @@ def init_worker(db_config_dict, slangwords_dict, stopwords_set, stemmer_instance
         database=db_config_dict['database']
     )
     
-    # Initialize other global variables
     local_slangwords_dict = slangwords_dict
     local_stopwords = stopwords_set
     local_stemmer = stemmer_instance
@@ -62,17 +60,26 @@ def load_slangwords(connection):
     logger.info(f"Loaded {len(slangwords)} slangwords.")
     return slangwords
 
+def convert_to_localtime(utc_time):
+    if isinstance(utc_time, str):
+        utc_time = datetime.strptime(utc_time, "%Y-%m-%d %H:%M:%S")
+    utc_tz = pytz.timezone("UTC")
+    jakarta_tz = pytz.timezone("Asia/Jakarta")
+    utc_dt = utc_tz.localize(utc_time) if utc_time.tzinfo is None else utc_time
+    jakarta_dt = utc_dt.astimezone(jakarta_tz)  
+    return jakarta_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def process_row(args):
     try:
         row, progress = args
         created_at, username, full_text = row
+        created_at_jakarta = convert_to_localtime(created_at)
         mentions, jumlah_mention = process_mentions(full_text)
         processed_text = preprocess_text(full_text)
-        
-        # Increment progress without using get_lock()
         progress.value += 1
-            
-        return (created_at, username, processed_text, mentions, jumlah_mention)
+
+        return (created_at_jakarta, username, processed_text, mentions, jumlah_mention)
     except Exception as e:
         logger.error(f"Error in process_row: {str(e)}")
         raise
@@ -154,10 +161,9 @@ class Preprocessor:
                 );""")
             self.connection.commit()
 
-            # Filter out records with no mentions or zero mentions
             filtered_data = [
                 row for row in processed_data 
-                if row[3] and row[3].strip() and row[4] > 0  # Check if mentions exist and jumlah_mention > 0
+                if row[3] and row[3].strip() and row[4] > 0 
             ]
 
             for row in filtered_data:
@@ -190,12 +196,9 @@ class Preprocessor:
             }
 
             with Manager() as manager:
-                # Use Value for atomic operations
                 progress = manager.Value('i', 0)
                 total_items = len(data)
                 start_time = time.time()
-
-                # Create pool with explicit initialization
                 with Pool(
                     processes=4,
                     initializer=init_worker,
@@ -210,7 +213,6 @@ class Preprocessor:
                     processed_data = []
                     for result in pool.imap_unordered(process_row, [(row, progress) for row in data]):
                         processed_data.append(result)
-                        # Calculate progress
                         current_progress = progress.value
                         self.send_progress_update(current_progress, total_items, start_time)
 

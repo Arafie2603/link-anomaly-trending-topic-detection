@@ -1,43 +1,62 @@
-# def initialize_bins(scores, NH):
-#     a = np.mean(scores) + 2 * np.std(scores)  
-#     b = np.min(scores)  
-#     bin_edges = [-np.inf] + [b + (a - b) / (NH - 2) * i for i in range(NH - 2)] + [np.inf]
-#     print(bin_edges)
-#     return bin_edges, a, b
+import sys
+import os
+import json
 
-# def initialize_histogram(NH):
-#     return np.ones(NH) / NH
+# Tambahkan root proyek ke sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-# def update_histogram(histogram, bins, score, r_H, lambda_H):
-#     bin_index = np.digitize(score, bins) - 1
-#     updated_histogram = np.zeros_like(histogram)
+from app.utils.db_connection import create_connection
+from app.utils.link_anomaly import LinkAnomalyDetector
 
-#     for h in range(len(histogram)):
-#         if h == bin_index:
-#             updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-#         else:
-#             updated_histogram[h] = (1 - r_H) * histogram[h]
-#     updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + len(histogram) * lambda_H)
-    
-#     return updated_histogram
+def main():
+    try:
+        print("Creating database connection")
+        db = create_connection()
 
-# def optimize_threshold(histogram, bins, rho):
-#     cumulative_distribution = np.cumsum(histogram)
-#     threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
-#     return bins[threshold_index]
+        print("Initializing LinkAnomalyDetector")
+        detector = LinkAnomalyDetector(db)
 
-# def process_session(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
-#     bins, a, b = initialize_bins(scores, NH)
-#     histogram = initialize_histogram(NH)
-#     results = []
-#     M = len(scores) - 1
+        print("Running process_link_anomaly")
+        results = detector.process_link_anomaly()
 
-#     for i in range(M):
-#         histogram = update_histogram(histogram, bins, score, r_H, lambda_H)
-#         threshold = optimize_threshold(histogram, bins, rho)
-#         alarm = scores[i] >= threshold
-#         print(f"{scores[i]} >= {threshold} = {alarm}")
-#         results.append({"Session": i + 1, "Score": scores, "Threshold": threshold, "Alarm": alarm})
-    
-#     return results
-# results = process_session(second_scores)
+        # Checking for trending tweets file
+        trending_tweets = None
+        if os.path.exists("hasil_twitt_trending.json"):
+            with open("hasil_twitt_trending.json", "r") as file:
+                trending_tweets = json.load(file)
+        
+        # Preparing response data
+        response_data = {
+            "status": "success",
+            "message": "Link anomaly detection completed successfully",
+            "data": {
+                "anomaly_detection_results": results["anomaly_detection_results"],
+                "aggregation_scores": [
+                    {
+                        "diskrit": score["diskrit"],
+                        "waktu_awal": score["waktu_awal"],
+                        "waktu_akhir": score["waktu_akhir"],
+                        "s_x": float(score["s_x"]),
+                        "jumlah_mention_agregasi": score["jumlah_mention_agregasi"]
+                    }
+                    for score in results["aggregation_scores"]
+                ],
+                "statistics": results["anomaly_detection_results"]["statistics"],
+                "trending_tweets": trending_tweets
+            }
+        }
+
+        print("Response data prepared:")
+        print(json.dumps(response_data, indent=2, ensure_ascii=False))
+        
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+        
+    finally:
+        # Ensure database connection is closed
+        if 'db' in locals() and db and db.is_connected():
+            db.close()
+        print("Database connection closed")
+
+if __name__ == "__main__":
+    main()

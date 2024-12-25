@@ -31,7 +31,7 @@
     <hr class="sidebar-divider my-0">
 
     <!-- Nav Item - Scraping / Preprocessing -->
-    <li class="nav-item {% if request.path == '/preprocessing' %}active{% endif %}">
+    <li class="nav-item {% if request.path == '/anomaly/preprocessing' %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('core.preprocessing_route') }}">
             <i class="fas fa-fw fa-scissors"></i>
             <span>preprocessing</span></a>
@@ -41,8 +41,8 @@
     <hr class="sidebar-divider my-0">
 
     <!-- Nav Item - Link Anomaly -->
-    <li class="nav-item {% if request.path == '/link_anomaly' %}active{% endif %}">
-        <a class="nav-link" href="">
+    <li class="nav-item {% if request.path == '/run_link_anomaly' %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('core.link_anomaly_route') }}">
             <i class="fas fa-fw fa-circle-nodes"></i>
             <span>Link Anomaly</span></a>
     </li>

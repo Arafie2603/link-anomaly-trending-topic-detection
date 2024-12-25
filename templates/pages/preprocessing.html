@@ -37,7 +37,7 @@
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body">+
                             Apakah Anda yakin ingin menghapus semua data preprocessing?
                         </div>
                         <div class="modal-footer">
@@ -105,10 +105,8 @@
                     data.data.forEach(row => {
                         const newRow = dataTable.insertRow();
 
-                        const created_at = new Date(row.created_at).toLocaleString();
-
                         newRow.insertCell(0).textContent = row.id;
-                        newRow.insertCell(1).textContent = created_at;
+                        newRow.insertCell(1).textContent = row.created_at;
                         newRow.insertCell(2).textContent = row.username;
                         newRow.insertCell(3).textContent = row.full_text;
                         newRow.insertCell(4).textContent = row.jumlah_mention;

@@ -14,9 +14,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger()
 
 load_dotenv()
-
-
-# Twitter data processing class
 class TwitterDataProcessor:
 
     def create_table(self, connection):
