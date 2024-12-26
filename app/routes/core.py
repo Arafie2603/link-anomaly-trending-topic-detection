@@ -1,9 +1,9 @@
 from flask import Blueprint, jsonify, render_template, current_app, Response, request
+from app.utils.extensions import socketio
 from app.utils.db_connection import create_connection
 from data.convert_to_database import TwitterDataProcessor
 from data.preprocessing import Preprocessor
 from app.utils.pool_manager import PoolManager
-from app.utils.extensions import socketio
 import json 
 import logging
 import mysql
@@ -16,6 +16,8 @@ processing_pool = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
 
 # =========== PAGE ===========
 @core_bp.route("/")
@@ -281,9 +283,8 @@ def run_link_anomaly():
 
         logger.info("Running process_link_anomaly")
         results = detector.process_link_anomaly()
+        logger.info(f"Results: {results}")
 
-        logger.info("Checking for trending tweets file")
-        
         waktu_awal = None
         waktu_akhir = None
         for result in results["anomaly_detection_results"]:
@@ -293,16 +294,24 @@ def run_link_anomaly():
                 break  
 
         logger.info("Preparing response data")
+
         response_data = {
             "status": "success",
             "message": "Link anomaly detection completed successfully",
             "data": {
+                "probabilitas_user": results['probabilitas_user'],
+                "probabilitas_mention": results['probabilitas_mention'],
+                "skor_anomaly": results['skor_anomaly'],
+                "hasil_agregasi": results['hasil_agregasi'],
+                "first_stage_learning": results['first_stage_learning'],
+                "first_stage_scoring": results['first_stage_scoring'],
+                "first_stage_smoothing": results['first_stage_smoothing'],
                 "anomaly_detection_results": results["anomaly_detection_results"],
                 "waktu_awal": waktu_awal,
                 "waktu_akhir": waktu_akhir,
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Error occurred: {str(e)}", exc_info=True)
         error_response = {
@@ -311,10 +320,10 @@ def run_link_anomaly():
             "error_details": str(e)
         }
         return jsonify(error_response), 500
-        
+
     finally:
         if 'db' in locals() and db and db.is_connected():
             db.close()
-            
+
     logger.info("Returning response data")
     return jsonify(response_data), 200

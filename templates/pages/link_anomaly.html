@@ -2,282 +2,497 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Link Anomaly</h1>
-    </div>
-
-    <div class="d-sm-flex align-items-center justify-content-start mb-4">
-        <input type="number" id="sequenceInput" placeholder="Jumlah Sequence (default: 2)" class="form-control mr-3"
-            style="max-width: 300px;">
-        <button id="startButton" class="btn btn-primary">Mulai</button>
-    </div>
-
-    <div class="card shadow mb-4" id="hasilCard" style="display: none;">
+    <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Hasil</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Link Anomaly Detection</h6>
         </div>
         <div class="card-body">
-            <div id="sequenceDetails" style="display: none; color: black;" class="mb-4">
-                <h4>Sequence yang terpilih (sequence ke-<span id="sequenceNumber"></span>)</h4>
-                <h4>Pada waktu <span id="sequenceTime"></h4>
-                <h4>Nilai bobot sequence adalah <span id="sequenceValue"></span></h4>
+            <button class="btn btn-primary mb-3" id="startProcess">Mulai</button>
+            <div id="loading" style="display: none;">
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                <p class="text-center mt-2">Sedang memuat data...</p>
             </div>
-            <div style="overflow-y: auto; max-height: 400px;">
-                <table id="textsTable" class="table" style="color: black;">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Text</th>
-                        </tr>
-                    </thead>
-                    <tbody style="max-height: 400px">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
-    <div class="accordion" id="detailsAccordion" style="display: none;">
-        <div class="accordion-item w-100">
-            <h2 class="accordion-header mx-auto mb-4" id="headingDetails" style="width: fit-content;">
-                <button class="accordion-button btn btn-secondary collapsed" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#collapseDetails" aria-expanded="false" aria-controls="collapseDetails">
-                    Lihat Hasil Detail <span class="ms-2">&#x25BC;</span> <!-- Down arrow icon -->
-                </button>
-            </h2>
-            <div id="collapseDetails" class="accordion-collapse collapse" aria-labelledby="headingDetails"
-                data-bs-parent="#detailsAccordion">
-                <div class="accordion-body">
-                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-                        <h1 class="h3 mb-0 text-gray-800">Perhitungan Link Anomaly</h1>
+            <!-- Probabilitas Mention Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Probabilitas Mention</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="mentionTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">No</th>
+                                    <th>Probabilitas Mention</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 1</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menghitung Probabilitas Sejumlah Mention</h6>
-                        </div>
-                        <div class="card-body">
-                            <h4>Rumus</h4>
-                            <div class="w-100 mb-4">
-                                <img class="m-auto" src="img/rumus_menghitung_probabilitas_mention.png" alt="">
-                            </div>
-                            <select id="sequenceSelector" class="form-control mb-3 w-auto">
-                                <option selected>Select a Sequence</option>
-                                <!-- Options will be populated dynamically by JavaScript -->
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="mentionEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
                             </select>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" style="color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Username</th>
-                                            <th>Text</th>
-                                            <th>Probability</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="probabilityTable">
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
+                            <span>entries</span>
+                        </div>
+                        <div id="mentionPagination" class="d-flex align-items-center">
+                            <button id="mentionPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="mentionPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="mentionNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
                         </div>
                     </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 2</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menghitung Probabilitas User</h6>
-                        </div>
-                        <div class="card-body">
-                            <h4>Rumus</h4>
-                            <img src="img/rumus_menghitung_probabilitas_user.png" alt="">
-                            <select id="userSequenceSelector" class="form-control mb-3 w-auto">
-                                <option selected>Pilih Sequence</option>
-                                <!-- Options will be populated dynamically by JavaScript -->
-                            </select>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" style="table-layout: fixed; color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 5%;">#</th>
-                                            <th>Text</th>
-                                            <th>Mentions</th>
-                                            <th style="width: 20%;">Probability</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="userProbabilityTable">
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 3</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menghitung Skor Link Anomaly</h6>
-                        </div>
-                        <div class="card-body">
-                            <h4>Rumus</h4>
-                            <img src="img/rumus_menghitung_skor_link_anomaly.png" class="mb-4" alt="">
-                            <select id="skorLinkAnomalySequenceSelector" class="form-control mb-3 w-auto">
-                                <option selected>Pilih Sequence</option>
-                                <!-- Options will be populated dynamically by JavaScript -->
-                            </select>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" style="color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Text</th>
-                                            <th>Skor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="skorLinkAnomalyTable">
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 4</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menghitung Agregasi Skor Link Anomaly</h6>
-                        </div>
-                        <div class="card-body">
-                            <h4>Rumus</h4>
-                            <img src="img/rumus_menghitung_agregasi_skor_link_anomaly.png" class="mb-4" alt="">
-                            <select id="agregasiSkorLinkAnomalySequenceSelector" class="form-control mb-3 w-auto">
-                                <option selected>Pilih Sequence</option>
-                                <!-- Options will be populated dynamically by JavaScript -->
-                            </select>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" style="table-layout: fixed; color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 15%;">diskrit time ke-n</th>
-                                            <th>Skor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="agregasiSkorLinkAnomalyTable">
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 5</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menyeleksi Agregasi Skor Link Anomaly</h6>
-                        </div>
-                        <div class="card-body">
-                            <p>Hanya diskrit dengan nilai agregasi skor link di atas threshold burst yang akan menjadi
-                                titik/state pada proses deteksi trending topik</p>
-                            <h4>threshold burst=0,9995</h4>
-                            <select id="seleksiAgregasiSkorLinkAnomalySequenceSelector"
-                                class="form-control mb-3 w-auto">
-                                <option selected>Pilih Sequence</option>
-                                <!-- Options will be populated dynamically by JavaScript -->
-                            </select>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" style="table-layout: fixed; color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 15%;">diskrit time ke-n</th>
-                                            <th>Skor</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="seleksiAgregasiSkorLinkAnomalyTable">
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Tahap 6</h6>
-                            <h6 class="m-0 font-weight-bold text-primary">Menghitung Cost Function</h6>
-                        </div>
-                        <div class="card-body">
-                            <h4>Rumus</h4>
-                            <img src="img/rumus_menghitung_cost_function.png" alt="">
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" id="costFunctionTable" style="color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th style="width: 15%;">Sequence</th>
-                                            <th>Cost</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card shadow mb-4">
-                        <div class=" card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Hasil Akhir</h6>
-                        </div>
-                        <div class="card-body" style="color: black;">
-                            <p>Sequence yang memiliki nilai minimum terindikasi berisi trending topic</p>
-                            <h4>Sequence yang terpilih (sequence ke-<span id="sequenceNumberHasilAkhir"></span>)</h4>
-                            <h4>Pada waktu <span id="sequenceTimeHasilAkhir"></h4>
-                            <h4>Nilai bobot sequence adalah <span id="sequenceValueHasilAkhir"></span></h4>
-                            <div style="max-height: 400px; overflow-y: auto;">
-                                <table class="table" id="hasilAkhirTable" style="color: black;">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Text</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Content filled by JavaScript -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
             </div>
+
+            <!-- Probabilitas User Table -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Probabilitas User</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="userTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">No</th>
+                                    <th>Probabilitas User</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="userEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="userPagination" class="d-flex align-items-center">
+                            <button id="userPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="userPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="userNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Probabilitas User Table -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Skor Anomaly</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="skorAnomalyTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">No</th>
+                                    <th>Skor Anomaly</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="skorAnomalyEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="skorAnomalyPagination" class="d-flex align-items-center">
+                            <button id="skorAnomalyPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="skorAnomalyPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="skorAnomalyNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Agregasi -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Agregasi</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="hasilAgregasiTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Jumlah Mention Agregasi</th>
+                                    <th>Nilai Agregasi</th>
+                                    <th>Waktu Awal</th>
+                                    <th>Waktu Akhir</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="hasilAgregasiEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="hasilAgregasiPagination" class="d-flex align-items-center">
+                            <button id="hasilAgregasiPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="hasilAgregasiPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="hasilAgregasiNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabel Hasil first stage -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil First Stage Learning</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="firstLearnTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai First Stage Learning</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="firstLearnEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="firstLearnPagination" class="d-flex align-items-center">
+                            <button id="firstLearnPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="firstLearnPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="firstLearnNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-
-
 </div>
 {% endblock %}
 
 {% block javascript %}
-
-
-<!-- Include Bootstrap Bundle with Popper (includes Bootstrap JS) -->
-<script src=" https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js">
-</script>
-
-<!-- Page level plugins -->
-<script src="vendor/chart.js/Chart.min.js"></script>
-
-<!-- Page level custom scripts -->
-<script src="js/demo/chart-area-demo.js"></script>
-<script src="js/demo/chart-pie-demo.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.2.1/decimal.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.min.js"
-    integrity="sha384-tyF19AUUsmK/e8HhLOObI0ye3stj6i18V+R0GIiXpLVxwBs/mKqqyg8H8obIMCRG"
-    crossorigin="anonymous"></script>
-
 <script>
-</script>
+    let isProcessing = false;
+    // Data untuk probabilitas user
+    let userCurrentData = [];
+    let userCurrentPage = 1;
+    let userEntriesPerPage = 10;
+    // Data untuk probabilitas mention
+    let mentionCurrentData = [];
+    let mentionCurrentPage = 1;
+    let mentionEntriesPerPage = 10;
+    // Data skor anomaly
+    let skorAnomalyCurrentData = [];
+    let skorAnomalyCurrentPage = 1;
+    let skorAnomalyEntriesPerPage = 10;
 
+    let hasilAgregasiCurrentPage = 1;
+    let hasilAgregasiEntriesPerPage = 10;
+    let hasilAgregasiCurrentData = [];
+
+    let firstLearnCurrentData = [];
+    let firstLearnCurrentPage = 1;
+    let firstLearnEntriesPerPage = 10;
+
+    // Event Listeners untuk Probabilitas User
+    document.getElementById("userEntriesPerPage").addEventListener("change", (e) => {
+        userEntriesPerPage = parseInt(e.target.value);
+        renderUserTable();
+    });
+
+    document.getElementById("userPrevPage").addEventListener("click", () => {
+        if (userCurrentPage > 1) {
+            userCurrentPage--;
+            renderUserTable();
+        }
+    });
+
+    document.getElementById("userNextPage").addEventListener("click", () => {
+        if (userCurrentPage < Math.ceil(userCurrentData.length / userEntriesPerPage)) {
+            userCurrentPage++;
+            renderUserTable();
+        }
+    });
+
+    // Event Listeners untuk Probabilitas Mention
+    document.getElementById("mentionEntriesPerPage").addEventListener("change", (e) => {
+        mentionEntriesPerPage = parseInt(e.target.value);
+        renderMentionTable();
+    });
+
+    document.getElementById("mentionPrevPage").addEventListener("click", () => {
+        if (mentionCurrentPage > 1) {
+            mentionCurrentPage--;
+            renderMentionTable();
+        }
+    });
+
+    document.getElementById("mentionNextPage").addEventListener("click", () => {
+        if (mentionCurrentPage < Math.ceil(mentionCurrentData.length / mentionEntriesPerPage)) {
+            mentionCurrentPage++;
+            renderMentionTable();
+        }
+    });
+    // Event Listeners untuk Skor Anomaly
+    document.getElementById("skorAnomalyEntriesPerPage").addEventListener("change", (e) => {
+        skorAnomalyEntriesPerPage = parseInt(e.target.value);
+        renderSkorAnomalyTable();
+    });
+
+    document.getElementById("skorAnomalyPrevPage").addEventListener("click", () => {
+        if (skorAnomalyCurrentPage > 1) {
+            skorAnomalyCurrentPage--;
+            renderSkorAnomalyTable();
+        }
+    });
+
+    document.getElementById("skorAnomalyNextPage").addEventListener("click", () => {
+        if (skorAnomalyCurrentPage < Math.ceil(skorAnomalyCurrentData.length / skorAnomalyEntriesPerPage)) {
+            skorAnomalyCurrentPage++;
+            renderSkorAnomalyTable();
+        }
+    });
+
+    // Event Listeners untuk Hasil Agregasi
+    document.getElementById("hasilAgregasiEntriesPerPage").addEventListener("change", (e) => {
+        hasilAgregasiEntriesPerPage = parseInt(e.target.value);
+        renderHasilAgregasiTable();
+    });
+
+    document.getElementById("hasilAgregasiPrevPage").addEventListener("click", () => {
+        if (hasilAgregasiCurrentPage > 1) {
+            hasilAgregasiCurrentPage--;
+            renderHasilAgregasiTable();
+        }
+    });
+
+    document.getElementById("hasilAgregasiNextPage").addEventListener("click", () => {
+        if (hasilAgregasiCurrentPage < Math.ceil(hasilAgregasiCurrentData.length / hasilAgregasiEntriesPerPage)) {
+            hasilAgregasiCurrentPage++;
+            renderHasilAgregasiTable();
+        }
+    });
+    // Event Listeners untuk First Learning
+    document.getElementById("firstLearnEntriesPerPage").addEventListener("change", (e) => {
+        firstLearnEntriesPerPage = parseInt(e.target.value);
+        renderFirstLearn();
+    });
+
+    document.getElementById("firstLearnPrevPage").addEventListener("click", () => {
+        if (firstLearnCurrentPage > 1) {
+            firstLearnCurrentPage--;
+            renderFirstLearn();
+        }
+    });
+
+    document.getElementById("firstLearnNextPage").addEventListener("click", () => {
+        if (firstLearnCurrentPage < Math.ceil(firstLearnCurrentData.length / firstLearnEntriesPerPage)) {
+            firstLearnCurrentPage++;
+            renderFirstLearn();
+        }
+    });
+
+
+
+    document.getElementById("startProcess").addEventListener("click", async () => {
+        if (isProcessing) return;
+
+        const loading = document.getElementById("loading");
+        const button = document.getElementById("startProcess");
+
+        try {
+            isProcessing = true;
+            button.disabled = true;
+            loading.style.display = "block";
+
+            const response = await fetch("/api/run_link_anomaly", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            const data = await response.json();
+
+            if (data.status === "success") {
+                userCurrentData = data.data.probabilitas_user;
+                mentionCurrentData = data.data.probabilitas_mention;
+                skorAnomalyCurrentData = data.data.skor_anomaly;
+                hasilAgregasiCurrentData = data.data.hasil_agregasi;
+                firstLearnCurrentData = data.data.first_stage_learning;
+
+                userCurrentPage = 1;
+                mentionCurrentPage = 1;
+                skorAnomalyCurrentPage = 1;
+                hasilAgregasiCurrentPage = 1;
+                firstLearnCurrentPage = 1;
+
+                renderUserTable();
+                renderMentionTable();
+                renderSkorAnomalyTable();
+                renderHasilAgregasiTable();
+                renderFirstLearn();
+            } else {
+                throw new Error(data.message);
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Terjadi kesalahan: " + error.message);
+        } finally {
+            loading.style.display = "none";
+            button.disabled = false;
+            isProcessing = false;
+        }
+    });
+
+    function renderUserTable() {
+        const startIndex = (userCurrentPage - 1) * userEntriesPerPage;
+        const endIndex = startIndex + userEntriesPerPage;
+        const pageData = userCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#userTable tbody");
+        tbody.innerHTML = pageData
+            .map((values, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td>
+                <td>${Array.isArray(values) ?
+                    values.map(val => val.toFixed(8)).join('<br>') :
+                    values.toFixed(8)}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(userCurrentData.length / userEntriesPerPage);
+        document.getElementById("userPageInfo").textContent = `Page ${userCurrentPage} of ${totalPages}`;
+
+        document.getElementById("userPrevPage").disabled = userCurrentPage === 1;
+        document.getElementById("userNextPage").disabled = userCurrentPage === totalPages;
+    }
+
+    function renderMentionTable() {
+        const startIndex = (mentionCurrentPage - 1) * mentionEntriesPerPage;
+        const endIndex = startIndex + mentionEntriesPerPage;
+        const pageData = mentionCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#mentionTable tbody");
+        tbody.innerHTML = pageData
+            .map((value, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td>
+                <td>${value.toFixed(8)}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(mentionCurrentData.length / mentionEntriesPerPage);
+        document.getElementById("mentionPageInfo").textContent = `Page ${mentionCurrentPage} of ${totalPages}`;
+        document.getElementById("mentionPrevPage").disabled = mentionCurrentPage === 1;
+        document.getElementById("mentionNextPage").disabled = mentionCurrentPage === totalPages;
+    }
+    function renderSkorAnomalyTable() {
+        const startIndex = (skorAnomalyCurrentPage - 1) * skorAnomalyEntriesPerPage;
+        const endIndex = startIndex + skorAnomalyEntriesPerPage;
+        const pageData = skorAnomalyCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#skorAnomalyTable tbody");
+        tbody.innerHTML = pageData
+            .map((value, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td>
+                <td>${typeof value === 'number' ? value.toFixed(8) : value}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(skorAnomalyCurrentData.length / skorAnomalyEntriesPerPage);
+        document.getElementById("skorAnomalyPageInfo").textContent = `Page ${skorAnomalyCurrentPage} of ${totalPages}`;
+
+        document.getElementById("skorAnomalyPrevPage").disabled = skorAnomalyCurrentPage === 1;
+        document.getElementById("skorAnomalyNextPage").disabled = skorAnomalyCurrentPage === totalPages;
+    }
+
+    function renderHasilAgregasiTable() {
+        const startIndex = (hasilAgregasiCurrentPage - 1) * hasilAgregasiEntriesPerPage;
+        const endIndex = startIndex + hasilAgregasiEntriesPerPage;
+        const pageData = hasilAgregasiCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#hasilAgregasiTable tbody");
+        tbody.innerHTML = pageData
+            .map((row, index) => `
+            <tr>
+                <td>${row.diskrit}</td>
+                <td>${row.jumlah_mention_agregasi}</td>
+                <td>${row.s_x.toFixed(8)}</td>
+                <td>${row.waktu_awal}</td>
+                <td>${row.waktu_akhir}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(hasilAgregasiCurrentData.length / hasilAgregasiEntriesPerPage);
+        document.getElementById("hasilAgregasiPageInfo").textContent = `Page ${hasilAgregasiCurrentPage} of ${totalPages}`;
+
+        document.getElementById("hasilAgregasiPrevPage").disabled = hasilAgregasiCurrentPage === 1;
+        document.getElementById("hasilAgregasiNextPage").disabled = hasilAgregasiCurrentPage === totalPages;
+    }
+
+    function renderFirstLearn() {
+    const startIndex = (firstLearnCurrentPage - 1) * firstLearnEntriesPerPage;
+    const endIndex = startIndex + firstLearnEntriesPerPage;
+    const pageData = firstLearnCurrentData.slice(startIndex, endIndex);
+
+    const tbody = document.querySelector("#firstLearnTable tbody");
+    tbody.innerHTML = pageData
+        .map((value, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td> <!-- Menampilkan nomor diskrit sesuai urutan -->
+                <td>${value}</td> <!-- Menampilkan nilai first stage learning -->
+            </tr>
+        `).join('');  // Menampilkan setiap nilai dalam baris terpisah
+
+    const totalPages = Math.ceil(firstLearnCurrentData.length / firstLearnEntriesPerPage);
+    document.getElementById("firstLearnPageInfo").textContent = `Page ${firstLearnCurrentPage} of ${totalPages}`;
+
+    document.getElementById("firstLearnPrevPage").disabled = firstLearnCurrentPage === 1;
+    document.getElementById("firstLearnNextPage").disabled = firstLearnCurrentPage === totalPages;
+}
+
+
+</script>
 {% endblock %}

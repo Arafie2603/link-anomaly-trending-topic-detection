@@ -21,6 +21,12 @@ class LinkAnomalyDetector:
         self.tweets_data = []
         self.hasil_perhitungan = []
         self.hasil_agregasi = []
+        self.probabilitas_mention = []
+        self.probabilitas_user = []
+        self.skor_anomaly = []
+        self.first_stage_learning = []
+        self.first_stage_scoring = []
+        self.first_stage_smoothing = []
 
     def fetch_tweets_data(self) -> List[Dict]:
         """Fetch tweets data from database and process it"""
@@ -72,7 +78,7 @@ class LinkAnomalyDetector:
                 iterasi *= (m + beta + j) / (n + m + alpha + beta + j)
             
             waktu_str = tweet['created_at'].strftime("%Y-%m-%d %H:%M:%S")
-
+            self.probabilitas_mention.append(iterasi)
             self.hasil_perhitungan.append({
                 "id": tweet['id'],
                 "created_at": waktu_str,
@@ -80,7 +86,7 @@ class LinkAnomalyDetector:
                 "mentions": tweet['jumlah_mention']
             })
         
-        return self.hasil_perhitungan
+        return self.hasil_perhitungan, self.probabilitas_mention
 
     def hitung_mention_tiap_id(self) -> List[Dict]:
         """Calculate mention probabilities for each user"""
@@ -113,12 +119,13 @@ class LinkAnomalyDetector:
                 pmention_list.append(p)
                 
             mention_list_uji.extend(mentions_list)
+            self.probabilitas_user.append(pmention_list)
 
             for hasil in self.hasil_perhitungan:
                 if hasil['id'] == tweet['id']:
                     hasil['probabilitas_user'] = pmention_list
 
-        return self.hasil_perhitungan
+        return self.hasil_perhitungan, self.probabilitas_user
 
     def hitung_skor_anomaly(self) -> List[Dict]:
         """Calculate anomaly scores"""
@@ -135,9 +142,10 @@ class LinkAnomalyDetector:
                         temp_puser.append(math.log(probabilitas_user[0]))
                     
                     skor_anomaly = -math.log(probabilitas_mention) - sum(temp_puser)
+                    self.skor_anomaly.append(skor_anomaly)
                     item['skor_anomaly'] = skor_anomaly
 
-        return self.hasil_perhitungan
+        return self.hasil_perhitungan, self.skor_anomaly
 
     def hitung_skor_agregasi(self) -> List[Dict]:
         """Calculate aggregation scores"""
@@ -223,7 +231,9 @@ class LinkAnomalyDetector:
         s_t = [(i - m) * tau_t[i] for i in range(m+1, len(tau_t))]
         K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t))]
         p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, len(s_t))]
+        self.first_stage_learning.append(p_SDNML)
         log_p_SDNML = [-np.log(p_SDNML[i]) for i in range(len(p_SDNML))]
+        self.first_stage_scoring.append(log_p_SDNML)
 
         return self.apply_smoothing(log_p_SDNML, T)
 
@@ -312,29 +322,27 @@ class LinkAnomalyDetector:
 
             alarm = scores[j] >= threshold
 
-            # Simpan hasil
-            results.append({
-                "Session": j + 1,
-                "Score": float(scores[j]),  # Pastikan tipe data float
-                "Threshold": float(threshold),  # Konversi threshold ke float
-                "Alarm": bool(alarm)  # Konversi alarm ke bool
-            })
+            # Simpan hasil jika score >= threshold
+            if alarm:
+                result = {
+                    "Score": float(scores[j]),  # Pastikan tipe data float
+                    "Threshold": float(threshold),  # Konversi threshold ke float
+                    "Alarm": bool(alarm)  # Konversi alarm ke bool
+                }
 
-        # Tambahkan informasi waktu dan diskrit dari hasil_agregasi
-        waktu_awal = ""
-        waktu_akhir = ""
-        for result in results:
-            if result['Alarm']:
                 matching_data = next((item for item in self.hasil_agregasi if item.get('yscore') == result['Score']), None)
 
                 if matching_data:
                     result['Diskrit'] = matching_data['diskrit']
                     result['Waktu_Awal'] = matching_data['waktu_awal']
                     result['Waktu_Akhir'] = matching_data['waktu_akhir']
-                    waktu_awal = matching_data['waktu_awal']
-                    waktu_akhir = matching_data['waktu_akhir']
+
+                results.append(result)
 
         # Jika waktu awal dan waktu akhir valid, ambil data tweet dari database
+        waktu_awal = next((res['Waktu_Awal'] for res in results if 'Waktu_Awal' in res), "")
+        waktu_akhir = next((res['Waktu_Akhir'] for res in results if 'Waktu_Akhir' in res), "")
+
         if waktu_awal and waktu_akhir:
             cursor = self.connection.cursor()
             query = f"SELECT full_text FROM data_preprocessed WHERE created_at BETWEEN '{waktu_awal}' AND '{waktu_akhir}'"
@@ -349,9 +357,6 @@ class LinkAnomalyDetector:
         return results
 
 
-
-
-
     def process_link_anomaly(self, r: float = 0.0005) -> Dict[str, Any]:
         try:
             print("Fetching tweets data")
@@ -359,15 +364,15 @@ class LinkAnomalyDetector:
             
             print("Calculating mention probabilities")
             self.hitung_probabilitas_mention()
-            print("Mention probabilities calculated:", self.hasil_perhitungan)
+            print("Mention probabilities calculated:", self.probabilitas_mention)
             
             print("Calculating mention probabilities per user")
             self.hitung_mention_tiap_id()
-            print("Mention probabilities per user calculated:", self.hasil_perhitungan)
+            print("Mention probabilities per user calculated:", self.probabilitas_user)
             
             print("Calculating anomaly scores")
             self.hitung_skor_anomaly()
-            print("Anomaly scores calculated:", self.hasil_perhitungan)
+            print("Anomaly scores calculated:", self.skor_anomaly)
             
             print("Calculating aggregation scores")
             self.hitung_skor_agregasi()
@@ -396,7 +401,14 @@ class LinkAnomalyDetector:
             
             # Prepare return data
             return {
-                "anomaly_detection_results": final_results
+                "probabilitas_mention": self.probabilitas_mention,
+                "probabilitas_user": self.probabilitas_user,
+                "hasil_agregasi": self.hasil_agregasi,
+                "skor_anomaly": self.skor_anomaly,
+                "first_stage_learning": self.first_stage_learning,
+                "first_stage_scoring": self.first_stage_scoring,
+                "first_stage_smoothing": smoothed_scores,
+                "anomaly_detection_results": final_results,
             }
         except Exception as e:
             print(f"Error in process_link_anomaly: {str(e)}")
