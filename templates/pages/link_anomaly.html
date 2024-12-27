@@ -171,6 +171,7 @@
                     </div>
                 </div>
             </div>
+
             <!-- Tabel Hasil first stage -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -207,6 +208,115 @@
                 </div>
             </div>
 
+            <!-- Tabel Hasil first stage Scoring -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil First Stage Scoring</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="firstScoringTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai First Stage Learning</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="firstScoringEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="firstScoringPagination" class="d-flex align-items-center">
+                            <button id="firstScoringPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="firstScoringPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="firstScoringNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Smoothing -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Smoothing First Stage</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="firstSmoothingTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai Smoothing First Stage</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="firstSmoothingEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="firstSmoothingPagination" class="d-flex align-items-center">
+                            <button id="firstSmoothingPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="firstSmoothingPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="firstSmoothingNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Second Stage Learning -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Second Stage Learning</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="secondLearnTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai Second Stage Learning</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="secondLearnEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="secondLearnPagination" class="d-flex align-items-center">
+                            <button id="secondLearnPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="secondLearnPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="secondLearnNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
         </div>
     </div>
 </div>
@@ -236,7 +346,18 @@
     let firstLearnCurrentPage = 1;
     let firstLearnEntriesPerPage = 10;
 
-    // Event Listeners untuk Probabilitas User
+    let firstScoringCurrentData = [];
+    let firstScoringCurrentPage = 1;
+    let firstScoringEntriesPerPage = 10;
+
+    let firstSmoothingCurrentData = [];
+    let firstSmoothingCurrentPage = 1;
+    let firstSmoothingEntriesPerPage = 10;
+
+    let secondLearnCurrentData = [];
+    let secondLearnCurrentPage = 1;
+    let secondLearnEntriesPerPage = 10;
+
     document.getElementById("userEntriesPerPage").addEventListener("change", (e) => {
         userEntriesPerPage = parseInt(e.target.value);
         renderUserTable();
@@ -314,10 +435,20 @@
             renderHasilAgregasiTable();
         }
     });
-    // Event Listeners untuk First Learning
+
+    // Event Listeners untuk First Learn
     document.getElementById("firstLearnEntriesPerPage").addEventListener("change", (e) => {
         firstLearnEntriesPerPage = parseInt(e.target.value);
+        firstLearnCurrentPage = 1; // Reset ke halaman pertama saat mengubah entries per page
         renderFirstLearn();
+    });
+
+    document.getElementById("firstLearnNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(firstLearnCurrentData[0].length / firstLearnEntriesPerPage);
+        if (firstLearnCurrentPage < totalPages) {
+            firstLearnCurrentPage++;
+            renderFirstLearn();
+        }
     });
 
     document.getElementById("firstLearnPrevPage").addEventListener("click", () => {
@@ -327,13 +458,72 @@
         }
     });
 
-    document.getElementById("firstLearnNextPage").addEventListener("click", () => {
-        if (firstLearnCurrentPage < Math.ceil(firstLearnCurrentData.length / firstLearnEntriesPerPage)) {
-            firstLearnCurrentPage++;
-            renderFirstLearn();
+    // Event Listeners untuk First Scoring
+    document.getElementById("firstScoringEntriesPerPage").addEventListener("change", (e) => {
+        firstScoringEntriesPerPage = parseInt(e.target.value);
+        firstScoringCurrentPage = 1;
+        renderfirstScoring();
+    });
+
+    document.getElementById("firstScoringNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(firstScoringCurrentData[0].length / firstScoringEntriesPerPage);
+        if (firstScoringCurrentPage < totalPages) {
+            firstScoringCurrentPage++;
+            renderfirstScoring();
         }
     });
 
+    document.getElementById("firstScoringPrevPage").addEventListener("click", () => {
+        if (firstScoringCurrentPage > 1) {
+            firstScoringCurrentPage--;
+            renderfirstScoring();
+        }
+    });
+
+
+    // Event Listeners untuk First Smoothing
+    document.getElementById("firstSmoothingEntriesPerPage").addEventListener("change", (e) => {
+        firstSmoothingEntriesPerPage = parseInt(e.target.value);
+        firstSmoothingCurrentPage = 1;
+        renderFirstSmoothing();
+    });
+
+    document.getElementById("firstSmoothingNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(firstSmoothingCurrentData.length / firstSmoothingEntriesPerPage);
+        if (firstSmoothingCurrentPage < totalPages) {
+            firstSmoothingCurrentPage++;
+            renderFirstSmoothing();
+        }
+    });
+
+    document.getElementById("firstSmoothingPrevPage").addEventListener("click", () => {
+        if (firstSmoothingCurrentPage > 1) {
+            firstSmoothingCurrentPage--;
+            renderFirstSmoothing();
+        }
+    });
+
+    // Event Listeners untuk Second Learn
+    document.getElementById("secondLearnEntriesPerPage").addEventListener("change", (e) => {
+        secondLearnEntriesPerPage = parseInt(e.target.value);
+        secondLearnCurrentPage = 1;
+        rendersecondLearn();
+    });
+
+    document.getElementById("secondLearnNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(secondLearnCurrentData[0].length / secondLearnEntriesPerPage);
+        if (secondLearnCurrentPage < totalPages) {
+            secondLearnCurrentPage++;
+            rendersecondLearn();
+        }
+    });
+
+    document.getElementById("secondLearnPrevPage").addEventListener("click", () => {
+        if (secondLearnCurrentPage > 1) {
+            secondLearnCurrentPage--;
+            rendersecondLearn();
+        }
+    });
 
 
     document.getElementById("startProcess").addEventListener("click", async () => {
@@ -360,18 +550,25 @@
                 skorAnomalyCurrentData = data.data.skor_anomaly;
                 hasilAgregasiCurrentData = data.data.hasil_agregasi;
                 firstLearnCurrentData = data.data.first_stage_learning;
+                firstScoringCurrentData = data.data.first_stage_scoring;
+                firstSmoothingCurrentData = data.data.first_stage_smoothing;
 
                 userCurrentPage = 1;
                 mentionCurrentPage = 1;
                 skorAnomalyCurrentPage = 1;
                 hasilAgregasiCurrentPage = 1;
                 firstLearnCurrentPage = 1;
+                firstScoringCurrentPage = 1;
+                firstSmoothingCurrentPage = 1;
 
                 renderUserTable();
                 renderMentionTable();
                 renderSkorAnomalyTable();
                 renderHasilAgregasiTable();
                 renderFirstLearn();
+                renderfirstScoring();
+                renderFirstSmoothing();
+                rendersecondLearn();
             } else {
                 throw new Error(data.message);
             }
@@ -403,7 +600,6 @@
 
         const totalPages = Math.ceil(userCurrentData.length / userEntriesPerPage);
         document.getElementById("userPageInfo").textContent = `Page ${userCurrentPage} of ${totalPages}`;
-
         document.getElementById("userPrevPage").disabled = userCurrentPage === 1;
         document.getElementById("userNextPage").disabled = userCurrentPage === totalPages;
     }
@@ -443,7 +639,6 @@
 
         const totalPages = Math.ceil(skorAnomalyCurrentData.length / skorAnomalyEntriesPerPage);
         document.getElementById("skorAnomalyPageInfo").textContent = `Page ${skorAnomalyCurrentPage} of ${totalPages}`;
-
         document.getElementById("skorAnomalyPrevPage").disabled = skorAnomalyCurrentPage === 1;
         document.getElementById("skorAnomalyNextPage").disabled = skorAnomalyCurrentPage === totalPages;
     }
@@ -473,26 +668,101 @@
     }
 
     function renderFirstLearn() {
-    const startIndex = (firstLearnCurrentPage - 1) * firstLearnEntriesPerPage;
-    const endIndex = startIndex + firstLearnEntriesPerPage;
-    const pageData = firstLearnCurrentData.slice(startIndex, endIndex);
+        if (!firstLearnCurrentData || !firstLearnCurrentData[0] || !Array.isArray(firstLearnCurrentData[0])) {
+            console.error('Data tidak valid untuk First Learn table');
+            return;
+        }
 
-    const tbody = document.querySelector("#firstLearnTable tbody");
-    tbody.innerHTML = pageData
-        .map((value, index) => `
+        const startIndex = (firstLearnCurrentPage - 1) * firstLearnEntriesPerPage;
+        const endIndex = startIndex + firstLearnEntriesPerPage;
+
+        const data = firstLearnCurrentData[0];
+        const pageData = data.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#firstLearnTable tbody");
+        tbody.innerHTML = pageData.map((value, index) => `
+        <tr>
+            <td>${startIndex + index + 1}</td>
+            <td>${parseFloat(value).toFixed(8)}</td>
+        </tr>
+    `).join('');
+
+        const totalPages = Math.ceil(data.length / firstLearnEntriesPerPage);
+        document.getElementById("firstLearnPageInfo").textContent = `Page ${firstLearnCurrentPage} of ${totalPages}`;
+        document.getElementById("firstLearnPrevPage").disabled = firstLearnCurrentPage === 1;
+        document.getElementById("firstLearnNextPage").disabled = firstLearnCurrentPage === totalPages;
+    }
+
+    function renderfirstScoring() {
+        if (!firstScoringCurrentData || !firstScoringCurrentData[0] || !Array.isArray(firstScoringCurrentData[0])) {
+            console.error('Data tidak valid untuk First Learn table');
+            return;
+        }
+
+        const startIndex = (firstScoringCurrentPage - 1) * firstScoringEntriesPerPage;
+        const endIndex = startIndex + firstScoringEntriesPerPage;
+
+        const data = firstScoringCurrentData[0];
+        const pageData = data.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#firstScoringTable tbody");
+        tbody.innerHTML = pageData.map((value, index) => `
+        <tr>
+            <td>${startIndex + index + 1}</td>
+            <td>${parseFloat(value).toFixed(8)}</td>
+        </tr>
+    `).join('');
+
+        const totalPages = Math.ceil(data.length / firstScoringEntriesPerPage);
+        document.getElementById("firstScoringPageInfo").textContent = `Page ${firstScoringCurrentPage} of ${totalPages}`;
+        document.getElementById("firstScoringPrevPage").disabled = firstScoringCurrentPage === 1;
+        document.getElementById("firstScoringNextPage").disabled = firstScoringCurrentPage === totalPages;
+    }
+
+    function renderFirstSmoothing() {
+        const startIndex = (firstSmoothingCurrentPage - 1) * firstSmoothingEntriesPerPage;
+        const endIndex = startIndex + firstSmoothingEntriesPerPage;
+        const pageData = firstSmoothingCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#firstSmoothingTable tbody");
+        tbody.innerHTML = pageData
+            .map((value, index) => `
             <tr>
-                <td>${startIndex + index + 1}</td> <!-- Menampilkan nomor diskrit sesuai urutan -->
-                <td>${value}</td> <!-- Menampilkan nilai first stage learning -->
+                <td>${startIndex + index + 1}</td>
+                <td>${value.toFixed(8)}</td>
             </tr>
-        `).join('');  // Menampilkan setiap nilai dalam baris terpisah
+        `).join('');
 
-    const totalPages = Math.ceil(firstLearnCurrentData.length / firstLearnEntriesPerPage);
-    document.getElementById("firstLearnPageInfo").textContent = `Page ${firstLearnCurrentPage} of ${totalPages}`;
+        const totalPages = Math.ceil(firstSmoothingCurrentData.length / firstSmoothingEntriesPerPage);
+        document.getElementById("firstSmoothingPageInfo").textContent = `Page ${firstSmoothingCurrentPage} of ${totalPages}`;
+        document.getElementById("firstSmoothingPrevPage").disabled = firstSmoothingCurrentPage === 1;
+        document.getElementById("firstSmoothingNextPage").disabled = firstSmoothingCurrentPage === totalPages;
+    }
 
-    document.getElementById("firstLearnPrevPage").disabled = firstLearnCurrentPage === 1;
-    document.getElementById("firstLearnNextPage").disabled = firstLearnCurrentPage === totalPages;
-}
+    function rendersecondLearn() {
+        if (!secondLearnCurrentData || !secondLearnCurrentData[0] || !Array.isArray(secondLearnCurrentData[0])) {
+            console.error('Data tidak valid untuk First Learn table');
+            return;
+        }
 
+        const startIndex = (secondLearnCurrentPage - 1) * secondLearnEntriesPerPage;
+        const endIndex = startIndex + secondLearnEntriesPerPage;
 
+        const data = secondLearnCurrentData[0];
+        const pageData = data.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#secondLearnTable tbody");
+        tbody.innerHTML = pageData.map((value, index) => `
+        <tr>
+            <td>${startIndex + index + 1}</td>
+            <td>${parseFloat(value).toFixed(8)}</td>
+        </tr>
+    `).join('');
+
+        const totalPages = Math.ceil(data.length / secondLearnEntriesPerPage);
+        document.getElementById("secondLearnPageInfo").textContent = `Page ${secondLearnCurrentPage} of ${totalPages}`;
+        document.getElementById("secondLearnPrevPage").disabled = secondLearnCurrentPage === 1;
+        document.getElementById("secondLearnNextPage").disabled = secondLearnCurrentPage === totalPages;
+    }
 </script>
 {% endblock %}

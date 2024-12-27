@@ -27,6 +27,13 @@ class LinkAnomalyDetector:
         self.first_stage_learning = []
         self.first_stage_scoring = []
         self.first_stage_smoothing = []
+        self.second_stage_learning = []
+        self.second_stage_scoring = []
+        self.dt = []
+        self.et = []
+        self.taut = []
+        self.st = []
+        self.kt = []
 
     def fetch_tweets_data(self) -> List[Dict]:
         """Fetch tweets data from database and process it"""
@@ -229,7 +236,12 @@ class LinkAnomalyDetector:
         e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
         tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t))]
         s_t = [(i - m) * tau_t[i] for i in range(m+1, len(tau_t))]
-        K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t))]
+        K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t))]
+        self.dt.append(d_t)
+        self.et.append(e_t)
+        self.taut.append(tau_t)
+        self.st.append(s_t)
+        self.kt.append(K_t)
         p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, len(s_t))]
         self.first_stage_learning.append(p_SDNML)
         log_p_SDNML = [-np.log(p_SDNML[i]) for i in range(len(p_SDNML))]
@@ -264,8 +276,14 @@ class LinkAnomalyDetector:
         smoothed_second_scores = self.apply_smoothing(log_p_SDNML_second, T)
         yscore = np.array(smoothed_second_scores)
 
+        self.second_stage_learning.append(p_SDNML_second)
+        self.second_stage_scoring.append(log_p_SDNML_second)
+
         end_index = len(self.hasil_agregasi) - (order + 1)
         start_index_second_smoothed = (order * order * T) + T - 1
+
+        self.second_stage_learning.append(p_SDNML_second)
+        self.second_stage_scoring.append(log_p_SDNML_second)
 
         for i in range(start_index_second_smoothed, end_index):
             relative_index = i - start_index_second_smoothed
@@ -380,6 +398,7 @@ class LinkAnomalyDetector:
             
             print("Preparing data for SDNML")
             aggregation_scores = np.array([entry["s_x"] for entry in self.hasil_agregasi])
+            aggregation_scores_list = aggregation_scores.tolist()
             print("Aggregation scores prepared:", aggregation_scores)
             
             print("Running first stage SDNML")
@@ -398,6 +417,7 @@ class LinkAnomalyDetector:
             print("Running dynamic threshold optimization")
             final_results = self.dynamic_threshold_optimization(smoothed_second_scores)
             print("Final results of dynamic threshold optimization:", final_results)
+            print("dt----", )
             
             # Prepare return data
             return {
@@ -405,9 +425,18 @@ class LinkAnomalyDetector:
                 "probabilitas_user": self.probabilitas_user,
                 "hasil_agregasi": self.hasil_agregasi,
                 "skor_anomaly": self.skor_anomaly,
+                "dt": self.dt,
+                "et": self.et,
+                "taut": self.taut,
+                "st": self.st,
+                "kt": self.kt,
+                "agregat": aggregation_scores_list,
                 "first_stage_learning": self.first_stage_learning,
                 "first_stage_scoring": self.first_stage_scoring,
                 "first_stage_smoothing": smoothed_scores,
+                "second_stage_learning": self.second_stage_learning,
+                "second_stage_scoring": self.second_stage_scoring,
+                "second_stage_smooth": smoothed_second_scores,
                 "anomaly_detection_results": final_results,
             }
         except Exception as e:

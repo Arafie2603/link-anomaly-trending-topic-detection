@@ -51,10 +51,10 @@
     <hr class="sidebar-divider my-0">
 
     <!-- Nav Item - Modelling Topik -->
-    <li class="nav-item {% if request.path == '/modelling' %}active{% endif %}">
-        <a class="nav-link" href=" ">
+    <li class="nav-item {% if request.path == '/topic_modeling' %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('core.topic_modeling_route') }}">
             <i class="fas fa-fwd fa-puzzle-piece"></i>
-            <span>Modelling Topik</span></a>
+            <span>Topic Modeling</span></a>
     </li>
 
     <!-- Divider -->

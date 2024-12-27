@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Modelling topik dengan LDA</h1>
+    </div>
+    <div class="d-sm-flex align-items-center justify-content-start mb-4">
+        <button id="startButton" class="btn btn-primary">Mulai</button>
+    </div>
+    <div class="card shadow mb-4" id="hasilModelling" style="display: none;">
+        <div class="card-body" style="color: black;">
+
+        </div>
+    </div>
+    <div class="card shadow mb-4" id="linkAnomalyCard" style="display: none;">
+        <div class="card-body">
+            <div id="sequenceDetails" class="mb-4">
+                <h4>Tweet yang akan dimodel <span id="sequenceTime"></span></h4>
+            </div>
+            <table id="dataTable" class="table" style="color: black;">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Text</th>
+                    </tr>
+                </thead>
+                <tbody style="max-height: 400px; overflow-y: auto;">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script>
+
+
+</script>
+{% endblock %}

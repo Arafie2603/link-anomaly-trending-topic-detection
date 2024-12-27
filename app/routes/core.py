@@ -41,6 +41,10 @@ def preprocessing_route():
 def page_import_data():
     return render_template("pages/import.html")
 
+@core_bp.route("/topic_modeling")
+def topic_modeling_route():
+    return render_template("pages/modeling.html")
+
 # =========== API DATA ===========
 @core_bp.route("/api/data")
 def api_data():
@@ -307,6 +311,15 @@ def run_link_anomaly():
                 "first_stage_scoring": results['first_stage_scoring'],
                 "first_stage_smoothing": results['first_stage_smoothing'],
                 "anomaly_detection_results": results["anomaly_detection_results"],
+                "second_stage_learning": results['second_stage_learning'],
+                "second_stage_scoring": results['second_stage_scoring'],
+                "second_stage_smooth": results['second_stage_smooth'],
+                "agregat": results['agregat'],
+                "dt": results['dt'],
+                "et": results['et'],
+                "taut": results['taut'],
+                "st": results['st'],
+                "kt": results['kt'],
                 "waktu_awal": waktu_awal,
                 "waktu_akhir": waktu_akhir,
             }
