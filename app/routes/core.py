@@ -3,13 +3,13 @@ from app.utils.extensions import socketio
 from app.utils.db_connection import create_connection
 from data.convert_to_database import TwitterDataProcessor
 from data.preprocessing import Preprocessor
-from app.utils.pool_manager import PoolManager
+from app.utils.link_anomaly import LinkAnomalyDetector
+from app.utils.lda import LDAModel
 import json 
 import logging
 import mysql
 import os
 import pandas as pd
-from app.utils.link_anomaly import LinkAnomalyDetector
 
 core_bp = Blueprint("core", __name__, url_prefix="/")
 processing_pool = None
@@ -260,6 +260,7 @@ def upload_csv_file():
             os.remove(filepath)
 
 # =========== Utilitas ===========
+
 @core_bp.route("/run_preprocessing", methods=['POST'])
 def run_preprocessing_route():
     """
@@ -275,6 +276,7 @@ def run_preprocessing_route():
         return jsonify(result), 500
     else:
         return jsonify(result), 200
+
 
 @core_bp.route("/api/run_link_anomaly", methods=['POST'])
 def run_link_anomaly():
@@ -313,7 +315,7 @@ def run_link_anomaly():
                 "anomaly_detection_results": results["anomaly_detection_results"],
                 "second_stage_learning": results['second_stage_learning'],
                 "second_stage_scoring": results['second_stage_scoring'],
-                "second_stage_smooth": results['second_stage_smooth'],
+                "second_stage_smoothing": results['second_stage_smoothing'],
                 "agregat": results['agregat'],
                 "dt": results['dt'],
                 "et": results['et'],
@@ -340,3 +342,91 @@ def run_link_anomaly():
 
     logger.info("Returning response data")
     return jsonify(response_data), 200
+
+@core_bp.route("/api/run_lda", methods=['GET'])
+def run_lda():
+    """
+    Flask Blueprint endpoint to run LDA on trending tweets data
+    Returns:
+        JSON response with topics and their associated words/weights
+    """
+    try:
+        # Check if file exists
+        if not os.path.exists('hasil_twitt_trending.json'):
+            return jsonify({
+                "status": "error",
+                "message": "Hasil perhitungan Link Anomaly tidak ditemukan"
+            }), 404
+        
+        # Load and process data
+        with open('hasil_twitt_trending.json', 'r') as file:
+            hasil_twitt_trending = json.load(file)
+        
+        # Extract text data
+        data = [item[0] for item in hasil_twitt_trending]
+        
+        # Initialize and run LDA
+        lda = LDAModel(n_topics=5, max_iterations=3000)  # Menggunakan parameter yang benar
+        tokenized_data = lda.tokenize_data(data)
+        
+        # Fit model
+        lda.fit(tokenized_data)  # Metode fit tidak mengembalikan nilai
+        
+        # Get topic words
+        topic_word_list = lda.get_topic_words()  # Tidak perlu parameter karena sudah ada di dalam class
+        
+        # Format response
+        formatted_topics = {}
+        for topic, words in topic_word_list.items():
+            formatted_topics[topic] = [{"word": word, "weight": round(weight, 4)} 
+                                    for word, weight in words]
+        
+        return jsonify({
+            "status": "success",
+            "topics": formatted_topics
+        }), 200
+        
+    except json.JSONDecodeError:
+        return jsonify({
+            "status": "error",
+            "message": "File JSON tidak valid"
+        }), 400
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }), 500
+@core_bp.route("/get_trending_tweets", methods=['GET'])
+def get_trending_tweets():
+    """
+    Flask Blueprint endpoint to get trending tweets data
+    Returns:
+        JSON response with trending tweets
+    """
+    try:
+        if not os.path.exists('hasil_twitt_trending.json'):
+            return jsonify({
+                "status": "error",
+                "message": "File hasil_twitt_trending.json tidak ditemukan"
+            }), 404
+            
+        with open('hasil_twitt_trending.json', 'r') as file:
+            trending_tweets = json.load(file)
+            
+        return jsonify({
+            "status": "success",
+            "data": trending_tweets
+        }), 200
+        
+    except json.JSONDecodeError:
+        return jsonify({
+            "status": "error",
+            "message": "File JSON tidak valid"
+        }), 400
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }), 500

@@ -491,7 +491,7 @@ kasubbag	kepala subbagian
 kasubbid	kepala subbidang
 katrok	kampungan
 kau	kamu
-kayanya	kayaknya
+kayanya	sepertinya
 kbar	kabar
 kbr	kabar
 kcian	kasihan
@@ -502,7 +502,7 @@ kedubes	kedutaan besar
 kejurnas	kejuaraan nasional
 kek	seperti
 kekeuh	keras kepala
-keknya	kayaknya
+keknya	sepertinya
 kel	kelurahan
 keliatan	kelihatan
 kemaren	kemarin
@@ -572,7 +572,7 @@ kuq	kok
 kw	imitasi
 ky	seperti
 kyk	seperti
-kykny	kayanya
+kykny	sepertinya
 la	lah
 laka	kecelakaan
 lam	salam
@@ -843,7 +843,6 @@ pembokat	pembantu
 pemda	pemerintah daerah
 pemkot	pemerintah kota
 pemilu	pemilu
-milu	pemilu
 pemprov	pemerintah provinsi
 pemred	pemimpin redaksi
 pengen	ingin
@@ -1315,6 +1314,9 @@ almaidahyg	almaidah
 istaa	nista
 benarjujur	benar
 benarjujur	jujur
+thnini	2024
+thn	2024
+tahun	2024
 sayan	sayang
 mgkin	mungkin
 vs	lawan
@@ -1346,9 +1348,26 @@ pemilu daerah	pilkada
 kompetisi kepala daerah	pilkada
 pemilihan pemimpin lokal 	pilkada
 pemilu lokal	pilkada
-kpu	kpud
 bujer	buzzer
 pasang calon	paslon
 ta	iya
 war	perang
 warnya	perang
+fufufafa	gibran
+mulyono	Jokowi
+emil	ridwan kamil
+milu	pemilu
+mulyono	jokowi
+gus yasin	yasin
+lutfi	luthfi
+jakartans	orang jakarta
+bgus	bagus
+jawa tengah	jateng
+jawa barat	jabar
+pas	saat
+via	melalui
+cagub	calon gubernur
+cawabup	calon wakil bupati
+cawagub	calon wakil gubernur
+cabup	calon bupati
+kpud	kpu daerah

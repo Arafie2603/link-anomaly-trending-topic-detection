@@ -2,12 +2,15 @@
 
 {% block content %}
 <div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Link Anomaly</h1>
+    </div>
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Link Anomaly Detection</h6>
         </div>
         <div class="card-body">
-            <button class="btn btn-primary mb-3" id="startProcess">Mulai</button>
+            <button class="btn btn-primary mb-3" id="startProcess">Mulai Proses</button>
             <div id="loading" style="display: none;">
                 <div class="d-flex justify-content-center">
                     <div class="spinner-border text-primary" role="status">
@@ -24,6 +27,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_menghitung_probabilitas_mention.png" alt="">
                         <table class="table table-bordered" id="mentionTable" width="100%">
                             <thead>
                                 <tr>
@@ -62,6 +66,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_menghitung_probabilitas_user.png" alt="">
                         <table class="table table-bordered" id="userTable" width="100%">
                             <thead>
                                 <tr>
@@ -100,6 +105,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_menghitung_agregasi_skor_link_anomaly.png" alt="">
                         <table class="table table-bordered" id="skorAnomalyTable" width="100%">
                             <thead>
                                 <tr>
@@ -138,6 +144,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_menghitung_agregasi_skor_link_anomaly.png" alt="">
                         <table class="table table-bordered" id="hasilAgregasiTable" width="100%">
                             <thead>
                                 <tr>
@@ -179,6 +186,8 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_sdnml4.png" alt="">
+                        <img src="../../static/img/keterangan_sdnml4.png" alt="">
                         <table class="table table-bordered" id="firstLearnTable" width="100%">
                             <thead>
                                 <tr>
@@ -215,6 +224,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_first_scoring.png" alt="">
                         <table class="table table-bordered" id="firstScoringTable" width="100%">
                             <thead>
                                 <tr>
@@ -251,6 +261,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_smoothing.png" alt="">
                         <table class="table table-bordered" id="firstSmoothingTable" width="100%">
                             <thead>
                                 <tr>
@@ -287,6 +298,8 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
+                        <img src="../../static/img/rumus_sdnml4.png" alt="">
+                        <img src="../../static/img/keterangan_sdnml4.png" alt="">
                         <table class="table table-bordered" id="secondLearnTable" width="100%">
                             <thead>
                                 <tr>
@@ -311,6 +324,101 @@
                             <button id="secondLearnPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
                             <span id="secondLearnPageInfo" class="mx-2">Page 1 of 1</span>
                             <button id="secondLearnNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Second Stage Scoring -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Second Stage Scoring</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <img src="../../static/img/rumus_second_smoothing.png" alt="">
+                        <table class="table table-bordered" id="secondScoringTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai Second Stage Scoring</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="secondScoringEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="secondScoringPagination" class="d-flex align-items-center">
+                            <button id="secondScoringPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="secondScoringPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="secondScoringNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Second Stage Smoothing -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Second Stage Smoothing</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <img src="../../static/img/rumus_second_smoothing.png" alt="">
+                        <table class="table table-bordered" id="secondSmoothingTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
+                                    <th>Nilai Second Stage Smoothing</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="secondSmoothingEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="secondSmoothingPagination" class="d-flex align-items-center">
+                            <button id="secondSmoothingPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="secondSmoothingPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="secondSmoothingNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="detectionResult" class="card mb-4" style="display: none;">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Deteksi Anomali</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h4 class="alert-heading mb-3">Status: <span id="anomalyStatus"></span></h4>
+                        <p id="anomalyInfo"></p>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Score:</strong> <span id="anomalyScore"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>Threshold:</strong> <span id="anomalyThreshold"></span></p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -357,6 +465,14 @@
     let secondLearnCurrentData = [];
     let secondLearnCurrentPage = 1;
     let secondLearnEntriesPerPage = 10;
+
+    let secondScoringCurrentData = [];
+    let secondScoringCurrentPage = 1;
+    let secondScoringEntriesPerPage = 10;
+
+    let secondSmoothingCurrentData = [];
+    let secondSmoothingCurrentPage = 1;
+    let secondSmoothingEntriesPerPage = 10;
 
     document.getElementById("userEntriesPerPage").addEventListener("change", (e) => {
         userEntriesPerPage = parseInt(e.target.value);
@@ -525,6 +641,50 @@
         }
     });
 
+    // Event Listeners untuk Second Scoring
+    document.getElementById("secondScoringEntriesPerPage").addEventListener("change", (e) => {
+        secondScoringEntriesPerPage = parseInt(e.target.value);
+        secondScoringCurrentPage = 1;
+        rendersecondScoring();
+    });
+
+    document.getElementById("secondScoringNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(secondScoringCurrentData[0].length / secondScoringEntriesPerPage);
+        if (secondScoringCurrentPage < totalPages) {
+            secondScoringCurrentPage++;
+            rendersecondScoring();
+        }
+    });
+
+    document.getElementById("secondScoringPrevPage").addEventListener("click", () => {
+        if (secondScoringCurrentPage > 1) {
+            secondScoringCurrentPage--;
+            rendersecondScoring();
+        }
+    });
+
+    // Event Listeners untuk Second Scoring
+    document.getElementById("secondSmoothingEntriesPerPage").addEventListener("change", (e) => {
+        secondSmoothingEntriesPerPage = parseInt(e.target.value);
+        secondSmoothingCurrentPage = 1;
+        rendersecondSmoothing();
+    });
+
+    document.getElementById("secondSmoothingNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(secondSmoothingCurrentData[0].length / secondSmoothingEntriesPerPage);
+        if (secondSmoothingCurrentPage < totalPages) {
+            secondSmoothingCurrentPage++;
+            rendersecondSmoothing();
+        }
+    });
+
+    document.getElementById("secondSmoothingPrevPage").addEventListener("click", () => {
+        if (secondSmoothingCurrentPage > 1) {
+            secondSmoothingCurrentPage--;
+            rendersecondSmoothing();
+        }
+    });
+
 
     document.getElementById("startProcess").addEventListener("click", async () => {
         if (isProcessing) return;
@@ -552,6 +712,9 @@
                 firstLearnCurrentData = data.data.first_stage_learning;
                 firstScoringCurrentData = data.data.first_stage_scoring;
                 firstSmoothingCurrentData = data.data.first_stage_smoothing;
+                secondLearnCurrentData = data.data.second_stage_learning;
+                secondScoringCurrentData = data.data.second_stage_scoring;
+                secondSmoothingCurrentData = data.data.second_stage_smoothing;
 
                 userCurrentPage = 1;
                 mentionCurrentPage = 1;
@@ -560,6 +723,9 @@
                 firstLearnCurrentPage = 1;
                 firstScoringCurrentPage = 1;
                 firstSmoothingCurrentPage = 1;
+                secondLearnCurrentPage = 1;
+                secondScoringCurrentPage = 1;
+                secondSmoothingCurrentPage = 1;
 
                 renderUserTable();
                 renderMentionTable();
@@ -569,6 +735,28 @@
                 renderfirstScoring();
                 renderFirstSmoothing();
                 rendersecondLearn();
+                rendersecondScoring();
+                rendersecondSmoothing();
+
+                document.getElementById("detectionResult").style.display = "block";
+                if (data.data.anomaly_detection_results && data.data.anomaly_detection_results.length > 0) {
+                    
+                    const anomaly = data.data.anomaly_detection_results[0];
+
+                    // Update status anomali
+                    document.getElementById("anomalyStatus").textContent = anomaly.Alarm ? "Terdeteksi" : "Normal";
+
+                    // Update info anomali dengan data diskrit dan waktu
+                    document.getElementById("anomalyInfo").textContent = `Hasil dari deteksi anomali terdapat pada diskrit ${anomaly.Diskrit}, pada waktu ${anomaly.Waktu_Awal} - ${anomaly.Waktu_Akhir}`;
+
+                    // Update score dan threshold
+                    document.getElementById("anomalyScore").textContent = anomaly.Score.toFixed(4);
+                    document.getElementById("anomalyThreshold").textContent = anomaly.Threshold.toFixed(4);
+
+                    // Ubah warna alert berdasarkan status
+                    const alertElement = document.querySelector('.alert');
+                    alertElement.className = anomaly.Alarm ? 'alert alert-danger' : 'alert alert-success';
+                }
             } else {
                 throw new Error(data.message);
             }
@@ -763,6 +951,55 @@
         document.getElementById("secondLearnPageInfo").textContent = `Page ${secondLearnCurrentPage} of ${totalPages}`;
         document.getElementById("secondLearnPrevPage").disabled = secondLearnCurrentPage === 1;
         document.getElementById("secondLearnNextPage").disabled = secondLearnCurrentPage === totalPages;
+    }
+
+    function rendersecondScoring() {
+        if (!secondScoringCurrentData || !secondScoringCurrentData[0] || !Array.isArray(secondScoringCurrentData[0])) {
+            console.error('Data tidak valid untuk First Learn table');
+            return;
+        }
+
+        const startIndex = (secondScoringCurrentPage - 1) * secondScoringEntriesPerPage;
+        const endIndex = startIndex + secondScoringEntriesPerPage;
+
+        const data = secondScoringCurrentData[0];
+        const pageData = data.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#secondScoringTable tbody");
+        tbody.innerHTML = pageData.map((value, index) => `
+        <tr>
+            <td>${startIndex + index + 1}</td>
+            <td>${parseFloat(value).toFixed(8)}</td>
+        </tr>
+    `).join('');
+
+        const totalPages = Math.ceil(data.length / secondScoringEntriesPerPage);
+        document.getElementById("secondScoringPageInfo").textContent = `Page ${secondScoringCurrentPage} of ${totalPages}`;
+        document.getElementById("secondScoringPrevPage").disabled = secondScoringCurrentPage === 1;
+        document.getElementById("secondScoringNextPage").disabled = secondScoringCurrentPage === totalPages;
+    }
+    function rendersecondSmoothing() {
+        if (!secondSmoothingCurrentData || !Array.isArray(secondSmoothingCurrentData)) {
+            console.error('Data tidak valid untuk Second Smoothing table');
+            return;
+        }
+
+        const startIndex = (secondSmoothingCurrentPage - 1) * secondSmoothingEntriesPerPage;
+        const endIndex = startIndex + secondSmoothingEntriesPerPage;
+        const pageData = secondSmoothingCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#secondSmoothingTable tbody");
+        tbody.innerHTML = pageData.map((value, index) => `
+        <tr>
+            <td>${startIndex + index + 1}</td>
+            <td>${parseFloat(value).toFixed(8)}</td>
+        </tr>
+    `).join('');
+
+        const totalPages = Math.ceil(secondSmoothingCurrentData.length / secondSmoothingEntriesPerPage);
+        document.getElementById("secondSmoothingPageInfo").textContent = `Page ${secondSmoothingCurrentPage} of ${totalPages}`;
+        document.getElementById("secondSmoothingPrevPage").disabled = secondSmoothingCurrentPage === 1;
+        document.getElementById("secondSmoothingNextPage").disabled = secondSmoothingCurrentPage === totalPages;
     }
 </script>
 {% endblock %}

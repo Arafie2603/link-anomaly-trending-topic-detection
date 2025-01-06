@@ -72,7 +72,7 @@ def hitung_probabilitas_mention(tweets):
         k = tweet['jumlah_mention']  
         temp_m = tweet['jumlah_mention'] 
         m += temp_m
-        n = i + 1
+        n = len(tweets)
 
         for j in range(k+1):
             if j == 0:
@@ -89,7 +89,8 @@ def hitung_probabilitas_mention(tweets):
     
     return hasil_perhitungan
 hasil_mention = hitung_probabilitas_mention(tweets_data)
-
+for i in range(6):
+    print(hasil_mention[i])
 print('---------- Hasil Probabilitas Mention User (TAHAPAN KEDUA) ----------')
 def hitung_mention_tiap_id(tweets_data):
     temp_mentions = []
@@ -167,7 +168,6 @@ hasil_skor_anomaly = hitung_skor_anomaly(hasil_perhitungan)
 """
 
 hasil_agregasi = []
-
 print('---------- Hitung Skor Agregasi ----------')
 def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
@@ -229,7 +229,7 @@ Langkah - langkahnya :
         d. mencari nilai k_t gamma pada k_t merupakan untuk mencari nilai faktorial 
         e. mencari nilai first layer learn dengan fungsi kepadatan p_SDNML 
 """
-r = 0.0005
+r = 0.005
 aggregation_scores = np.array([entry["s_x"] for entry in hasil_agregasi])
 print(f"agregasi = {aggregation_scores}")
 x_t = aggregation_scores

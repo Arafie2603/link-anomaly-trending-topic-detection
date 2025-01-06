@@ -8,26 +8,36 @@
     <div class="d-sm-flex align-items-center justify-content-start mb-4">
         <button id="startButton" class="btn btn-primary">Mulai</button>
     </div>
-    <div class="card shadow mb-4" id="hasilModelling" style="display: none;">
-        <div class="card-body" style="color: black;">
-
+    
+    <!-- Trending Tweets Table -->
+    <div class="card shadow mb-4" id="trendingTweets" style="display: none;">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Data Trending Tweets</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tweet</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tweetsList">
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-    <div class="card shadow mb-4" id="linkAnomalyCard" style="display: none;">
+
+    <!-- LDA Results -->
+    <div class="card shadow mb-4" id="hasilModelling" style="display: none;">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Hasil Modelling LDA</h6>
+        </div>
         <div class="card-body">
-            <div id="sequenceDetails" class="mb-4">
-                <h4>Tweet yang akan dimodel <span id="sequenceTime"></span></h4>
+            <div id="topicsContainer">
             </div>
-            <table id="dataTable" class="table" style="color: black;">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Text</th>
-                    </tr>
-                </thead>
-                <tbody style="max-height: 400px; overflow-y: auto;">
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
@@ -35,7 +45,94 @@
 
 {% block javascript %}
 <script>
+document.getElementById('startButton').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    
+    try {
+        // Fetch trending tweets
+        const tweetsResponse = await fetch('/get_trending_tweets');
+        const tweetsData = await tweetsResponse.json();
+        
+        if (tweetsData.status === 'success') {
+            displayTrendingTweets(tweetsData.data);
+            document.getElementById('trendingTweets').style.display = 'block';
+        }
+        
+        // Fetch LDA results
+        const ldaResponse = await fetch('/api/run_lda');
+        const ldaData = await ldaResponse.json();
+        
+        if (ldaData.status === 'success') {
+            displayLDAResults(ldaData.topics);
+            document.getElementById('hasilModelling').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Terjadi kesalahan saat memproses data');
+    } finally {
+        this.disabled = false;
+        this.textContent = 'Mulai';
+    }
+});
 
+function displayTrendingTweets(tweets) {
+    const tbody = document.getElementById('tweetsList');
+    tbody.innerHTML = '';
+    
+    tweets.forEach((tweet, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${tweet[0]}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 
+function displayLDAResults(topics) {
+    const container = document.getElementById('topicsContainer');
+    container.innerHTML = '';
+    
+    Object.entries(topics).forEach(([topicName, words]) => {
+        const topicDiv = document.createElement('div');
+        topicDiv.className = 'mb-4';
+        
+        const topicTitle = document.createElement('h5');
+        topicTitle.className = 'mb-3 font-weight-bold text-primary';
+        topicTitle.textContent = topicName;
+        
+        const table = document.createElement('table');
+        table.className = 'table table-bordered table-sm';
+        
+        // Create table header
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+            <tr>
+                <th>No</th>
+                <th>Word</th>
+                <th>Weight</th>
+            </tr>
+        `;
+        
+        // Create table body
+        const tbody = document.createElement('tbody');
+        words.forEach((item, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${item.word}</td>
+                <td>${item.weight.toFixed(4)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        topicDiv.appendChild(topicTitle);
+        topicDiv.appendChild(table);
+        container.appendChild(topicDiv);
+    });
+}
 </script>
 {% endblock %}

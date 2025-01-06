@@ -436,7 +436,7 @@ class LinkAnomalyDetector:
                 "first_stage_smoothing": smoothed_scores,
                 "second_stage_learning": self.second_stage_learning,
                 "second_stage_scoring": self.second_stage_scoring,
-                "second_stage_smooth": smoothed_second_scores,
+                "second_stage_smoothing": smoothed_second_scores,
                 "anomaly_detection_results": final_results,
             }
         except Exception as e:
