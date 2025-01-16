@@ -34,6 +34,12 @@ class LinkAnomalyDetector:
         self.taut = []
         self.st = []
         self.kt = []
+        self.ct = []
+        self.mt = []
+        self.at = []
+        self.vt_list = [] 
+        self.histogram = []
+        self.bins = []
 
     def fetch_tweets_data(self) -> List[Dict]:
         """Fetch tweets data from database and process it"""
@@ -77,7 +83,7 @@ class LinkAnomalyDetector:
             k = tweet['jumlah_mention']
             temp_m = tweet['jumlah_mention']
             m += temp_m
-            n = i + 1
+            n = i
 
             for j in range(k+1):
                 if j == 0:
@@ -227,25 +233,36 @@ class LinkAnomalyDetector:
         M = M0
 
         d_t = []
+        stage_vt = []
+        stage_ct = []
+        stage_mt = []
+        stage_at = []
         for t in range(len(X_t)):
             V_inv, M, c_t = self.update_matrices(V_inv, M, X_t[t], x_t[t + order], r)
             d_t_value = c_t / (1 - r + c_t)
             d_t.append(d_t_value)
+            stage_vt.append(V_inv.tolist())
+            stage_ct.append(c_t)
+            stage_mt.append(M.tolist())
 
         A_t = np.dot(V_inv, M)
         e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
         tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t))]
         s_t = [(i - m) * tau_t[i] for i in range(m+1, len(tau_t))]
         K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t))]
+        p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i - m) / 2) / s_t[i - 1]**(-(i - m - 1) / 2)) for i in range(m+1, len(s_t))]
+        log_p_SDNML = [-np.log(p_SDNML[i]) for i in range(len(p_SDNML))]
+        self.first_stage_learning.append(p_SDNML)
+        self.first_stage_scoring.append(log_p_SDNML)
         self.dt.append(d_t)
         self.et.append(e_t)
         self.taut.append(tau_t)
         self.st.append(s_t)
         self.kt.append(K_t)
-        p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, len(s_t))]
-        self.first_stage_learning.append(p_SDNML)
-        log_p_SDNML = [-np.log(p_SDNML[i]) for i in range(len(p_SDNML))]
-        self.first_stage_scoring.append(log_p_SDNML)
+        self.vt_list.extend(stage_vt)
+        self.ct.extend(stage_ct)
+        self.at.append(A_t)
+        self.mt.extend(stage_mt)
 
         return self.apply_smoothing(log_p_SDNML, T)
 
@@ -270,7 +287,7 @@ class LinkAnomalyDetector:
         tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t_second))]
         s_t_second = [(i - m) * tau_t_second[i] for i in range(m+1, len(tau_t_second))]
         K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
-        p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, len(s_t_second))]
+        p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i - m) / 2) / s_t_second[i - 1]**(-(i - m - 1) / 2)) for i in range(m+1, len(s_t_second))]
         log_p_SDNML_second = [-np.log(p_SDNML_second[i]) for i in range(len(p_SDNML_second))]
 
         smoothed_second_scores = self.apply_smoothing(log_p_SDNML_second, T)
@@ -280,7 +297,7 @@ class LinkAnomalyDetector:
         self.second_stage_scoring.append(log_p_SDNML_second)
 
         end_index = len(self.hasil_agregasi) - (order + 1)
-        start_index_second_smoothed = (order * order * T) + T - 1
+        start_index_second_smoothed = (order * 6)
 
         self.second_stage_learning.append(p_SDNML_second)
         self.second_stage_scoring.append(log_p_SDNML_second)
@@ -311,7 +328,7 @@ class LinkAnomalyDetector:
 
         # Inisialisasi bin
         scores = np.array(scores)
-        a = np.mean(scores) + 2 * np.std(scores)
+        a = np.mean(scores) + 1 * np.std(scores)
         filtered_scores = scores[scores > a]
         b = np.min(filtered_scores) if filtered_scores.size > 0 else a
 
@@ -322,9 +339,12 @@ class LinkAnomalyDetector:
         results = []
 
         M = len(scores)
+        stage_histogram = []
         for j in range(M - 1):
             bin_index = np.digitize(scores[j], bin_edges) - 1
             updated_histogram = np.zeros_like(histogram)
+            if bin_index == 0:
+                bin_index = ''
 
             for h in range(len(histogram)):
                 if h == bin_index:
@@ -337,8 +357,11 @@ class LinkAnomalyDetector:
             cumulative_distribution = np.cumsum(histogram)
             threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
             threshold = bin_edges[threshold_index]
+            self.histogram.append(histogram)
+
 
             alarm = scores[j] >= threshold
+            self.bins.append(bin_edges)
 
             # Simpan hasil jika score >= threshold
             if alarm:
@@ -356,6 +379,7 @@ class LinkAnomalyDetector:
                     result['Waktu_Akhir'] = matching_data['waktu_akhir']
 
                 results.append(result)
+        stage_histogram.append(histogram)
 
         # Jika waktu awal dan waktu akhir valid, ambil data tweet dari database
         waktu_awal = next((res['Waktu_Awal'] for res in results if 'Waktu_Awal' in res), "")
@@ -418,6 +442,11 @@ class LinkAnomalyDetector:
             final_results = self.dynamic_threshold_optimization(smoothed_second_scores)
             print("Final results of dynamic threshold optimization:", final_results)
             print("dt----", )
+
+            at_list = [arr.tolist() if isinstance(arr, np.ndarray) else arr for arr in self.at] 
+            mt_list = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.mt]
+            histogram = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.histogram]
+            bins = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.bins]
             
             # Prepare return data
             return {
@@ -430,6 +459,12 @@ class LinkAnomalyDetector:
                 "taut": self.taut,
                 "st": self.st,
                 "kt": self.kt,
+                "rat": at_list,
+                "rct": self.ct,
+                "rvt": self.vt_list,
+                "rmt": mt_list,
+                "rhistogram": histogram,
+                "rbins": bins,
                 "agregat": aggregation_scores_list,
                 "first_stage_learning": self.first_stage_learning,
                 "first_stage_scoring": self.first_stage_scoring,

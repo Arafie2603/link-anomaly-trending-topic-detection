@@ -283,6 +283,14 @@ def run_link_anomaly():
     try:
         logger.info("Creating database connection")
         db = create_connection()
+        cursor = db.cursor()
+
+        cursor.execute("SELECT mentions FROM data_preprocessed ORDER by created_at asc")
+        mentions = cursor.fetchall()
+        mentions = [item[0] for item in mentions]  # Flatten the list of tuples
+
+        cursor.execute("SELECT * FROM data_preprocessed ORDER BY created_at asc LIMIT 5")
+        twitter_mentions = cursor.fetchall()
 
         logger.info("Initializing LinkAnomalyDetector")
         detector = LinkAnomalyDetector(db)
@@ -317,11 +325,19 @@ def run_link_anomaly():
                 "second_stage_scoring": results['second_stage_scoring'],
                 "second_stage_smoothing": results['second_stage_smoothing'],
                 "agregat": results['agregat'],
-                "dt": results['dt'],
-                "et": results['et'],
+                "rdt": results['dt'],
+                "ret": results['et'],
+                "mentions": mentions,
+                "limit_twitt": twitter_mentions,
                 "taut": results['taut'],
-                "st": results['st'],
-                "kt": results['kt'],
+                "rst": results['st'],
+                "rkt": results['kt'],
+                "rvt": results['rvt'],
+                "rct": results['rct'],
+                "rmt": results['rmt'],
+                "rat": results['rat'],
+                "rbins": results['rbins'],
+                "rhistogram": results['rhistogram'],
                 "waktu_awal": waktu_awal,
                 "waktu_akhir": waktu_akhir,
             }
@@ -342,6 +358,7 @@ def run_link_anomaly():
 
     logger.info("Returning response data")
     return jsonify(response_data), 200
+
 
 @core_bp.route("/api/run_lda", methods=['GET'])
 def run_lda():

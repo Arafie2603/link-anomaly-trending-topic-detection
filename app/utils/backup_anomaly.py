@@ -72,7 +72,7 @@ def hitung_probabilitas_mention(tweets):
         k = tweet['jumlah_mention']  
         temp_m = tweet['jumlah_mention'] 
         m += temp_m
-        n = len(tweets)
+        n = i
 
         for j in range(k+1):
             if j == 0:
@@ -135,7 +135,8 @@ def hitung_mention_tiap_id(tweets_data):
 
     return hasil_perhitungan  
 hasil_probabilitas_user = hitung_mention_tiap_id(tweets_data)
-
+for i in range(6):
+    print(hasil_probabilitas_user[i])
 print('---------- Hitung Skor Anomaly ----------')
 def hitung_skor_anomaly(hasil):
     for skor in hasil:
@@ -159,7 +160,8 @@ def hitung_skor_anomaly(hasil):
                 item['skor_anomaly'] = skor_anomaly
 
 hasil_skor_anomaly = hitung_skor_anomaly(hasil_perhitungan)
-
+for i in range(179):
+    print(hasil_probabilitas_user[i])
 """
 2. Menghitung Agregasi Skor Anomaly
     - diskrit waktu yang ditentukan 24 jam pada var window_r
@@ -168,6 +170,7 @@ hasil_skor_anomaly = hitung_skor_anomaly(hasil_perhitungan)
 """
 
 hasil_agregasi = []
+
 print('---------- Hitung Skor Agregasi ----------')
 def hitung_skor_agregasi(hasil_skor):
     waktu_awal_string = hasil_skor[0]['created_at']
@@ -229,11 +232,11 @@ Langkah - langkahnya :
         d. mencari nilai k_t gamma pada k_t merupakan untuk mencari nilai faktorial 
         e. mencari nilai first layer learn dengan fungsi kepadatan p_SDNML 
 """
-r = 0.005
+r = 0.0005
 aggregation_scores = np.array([entry["s_x"] for entry in hasil_agregasi])
 print(f"agregasi = {aggregation_scores}")
 x_t = aggregation_scores
-
+print(len(x_t))
 def create_X_t(x_t, order):
     n = len(x_t)
     X_t = np.zeros((n - order, order))
@@ -244,6 +247,7 @@ def create_X_t(x_t, order):
 order = 2 
 m = 0
 X_t = create_X_t(x_t, order=order)
+print(len(X_t))
 print(f"Nilai x_bar_t = {X_t}")
 
 V0 = np.identity(order)
@@ -252,18 +256,18 @@ M0 = np.zeros(order)
 def update_matrices(V_prev_inv, M_prev, x_t, xt, r=0.0005):
     x_t = x_t[:, np.newaxis] 
     c_t = r * (x_t.T @ V_prev_inv @ x_t)
+    # print(c_t)
     V_t = (1 / (1 - r)) * V_prev_inv - (r / (1 - r)) * (V_prev_inv @ np.outer(x_t.flatten(), x_t) @ V_prev_inv) / (1 - r + c_t)
     M_t = (1 - r) * M_prev + r * x_t.flatten() * xt
-    print("V_t dan M_t:")
+    # print("V_t dan M_t:")
     # print(V_t)
-    # print("\nM_t:")
     # print(M_t)
-    # print("\n")
-    
+    # print("\nM_t:")
     return V_t, M_t, c_t.item()
 
 V_inv = V0
 M = M0
+
 d_t = []
 print(x_t[0 + order])
 for t in range(len(X_t)):
@@ -272,16 +276,22 @@ for t in range(len(X_t)):
     d_t.append(d_t_value)
     # print(V_inv)
 V = V_inv
+print(V)
+print(M)
 A_t = np.dot(V, M)
 print(A_t)
+
+
 print("--- d_t")
 print(d_t)
 
-e_t = [x_t[i + order] - np.dot(A_t, X_t[i]) for i in range(len(X_t))]
+e_t = [x_t[i + order] - np.dot(A_t.T, X_t[i]) for i in range(len(X_t))]
 print("--- e_t ---")
 print(e_t)
 tau_t = [(1 / (i - m)) * sum([e_t[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t))]
 print("--- tau_t ---")
+# print(e_t[1])
+# print((1 / (1 - m))*e_t[1]**2)
 print(tau_t)
 
 length_st = len(tau_t)
@@ -291,14 +301,17 @@ print(tau_t[m+1])
 print(s_t)
 
 K_t = [np.sqrt(np.pi) / (1 - d_t[i]) * gamma((i+1 - m - 1) / 2) / gamma((i - m) / 2) for i in range(m+1, len(d_t))]
+
 print("--- K_t ---")
-print(d_t[0+1])
+print(np.sqrt(np.pi) / (1 - d_t[1]) * gamma((1+1 - m - 1) / 2) / gamma((1 - m) / 2))
 print(K_t)
 
 length_firstLayer = len(s_t)
-p_SDNML = [K_t[i]**-1 * (s_t[i]**(-(i+1 - m) / 2) / s_t[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_firstLayer)]
+p_SDNML = [K_t[i]**-1 *  math.exp(-(i - m) / 2 * math.log(s_t[i])) / math.exp(-(i - m - 1) / 2 * math.log(s_t[i - 1])) for i in range(m+1, length_firstLayer)]
 print("--- psdnml ---")
+print(f"{s_t[1]} | {s_t[1 - 1]} | {K_t[1]} |  == {K_t[1]**-1 * (s_t[1]**(-(1 - m) / 2) / s_t[1 - 1]**(-(1 - m - 1) / 2))}")
 print(p_SDNML)
+print(K_t[1]**-1 )
 
 print("--- first score stage ---")
 """
@@ -367,6 +380,9 @@ Langkah - langkahnya :
 
 X_t_second = create_X_t(smoothed_scores, order=order)
 x_t_second = smoothed_scores
+print("----xt second----")
+print(smoothed_scores)
+print(X_t_second)
 
 V0_second = np.identity(order)
 M0_second = np.zeros(order)
@@ -381,14 +397,18 @@ for t in range(len(X_t_second)):
     d_t_value_second = c_t_second / (1 - r + c_t_second)
     d_t_second.append(d_t_value_second)
 print(d_t_second)
-
+print(f"V = {V_inv_second}")
+print(f" M = {M_second}")
 A_t_second = np.dot(V_inv_second, M_second)
+print(A_t_second)
 print("--- et second ---")
+print(x_t_second[0+order])
 e_t_second = [x_t_second[i + order] - np.dot(A_t_second, X_t_second[i]) for i in range(len(X_t_second))]
 print(e_t_second)
 
 print("--- tau_t_second ---")
 tau_t_second = [(1 / (i - m)) * sum([e_t_second[j]**2 for j in range(m+1, i+1)]) for i in range(m+1, len(X_t_second))]
+print(e_t_second[1])
 print(tau_t_second)
 
 print("--- s_t_second ---")
@@ -399,11 +419,14 @@ print(s_t_second)
 
 print("--- kt_second ---")
 K_t_second = [np.sqrt(np.pi) / (1 - d_t_second[i]) * gamma((i+1 - m - 1) / 2) / gamma((i+1 - m) / 2) for i in range(m+1, len(d_t_second))]
+print(d_t_second[1])
 print(K_t_second)
 
 print("--- PSDNML second ---")
 length_second_learn = len(s_t_second)
-p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i+1 - m) / 2) / s_t_second[i - 1]**(-(i+1 - m - 1) / 2)) for i in range(m+1, length_second_learn)]
+p_SDNML_second = [K_t_second[i]**-1 * (s_t_second[i]**(-(i - m) / 2) / s_t_second[i - 1]**(-(i - m - 1) / 2)) for i in range(m+1, length_second_learn)]
+print("--- psdnml ---")
+print(f"{s_t_second[1]} | {s_t_second[1 - 1]} | {K_t_second[1]} |  == {K_t_second[1]**-1 * (s_t_second[1]**(-(1+1 - m) / 2) / s_t_second[1 - 1]**(-(1+1 - m - 1) / 2))}")
 print(p_SDNML_second)
 
 print("--- Second Scoring Stage ---")
@@ -425,7 +448,7 @@ yscore = np.array(smoothed_second_scores)
 print(yscore)
 
 end_index = len(hasil_agregasi)-(order+1)
-start_index_second_smoothed = (order * order * T) + T - 1
+start_index_second_smoothed = (order * 6)
 print(start_index_second_smoothed)
 for i in range(start_index_second_smoothed, end_index):
     relative_index = i - start_index_second_smoothed
@@ -462,51 +485,48 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=
     - results: List dictionary berisi hasil untuk setiap sesi
     """
     # Inisialisasi bin
-    print(f"scores = {scores}")
-    a = np.mean(scores) + 2 * np.std(scores)
-    print(f"debug = {np.mean(scores)} dari {scores}")
+    scores = np.array(scores)
+    print(scores)
+    a = np.mean(scores) + 1 * np.std(scores)
     filtered_scores = scores[scores > a]
-    if filtered_scores.size > 0:
-        b = np.min(filtered_scores)
-    else:
-        b = np.min(filtered_scores)  
-    
-    print(f"a = {a}")
-    print(f"b = {b}")
+    b = np.min(filtered_scores) if filtered_scores.size > 0 else a
+    print(f"Nilai A = {a}")
+    print(f"Nilai B = {b}")
+    print(f"Nilai STD = {np.std(scores)}")
+    print(f"Nilai mean = {np.mean(scores)}")
 
-
-    bin_edges = [-np.inf, a] + [a + (b - a) / (NH - 2) * i for i in range(NH - 3)] + [np.inf]
+    bin_edges = [-np.inf, a] + [a + (b - a) / (NH - 2) * (i + 1) for i in range(NH - 3)] + [np.inf]
+    # bin_edges = np.sort(bin_edges)
     print(bin_edges)
-    bin_edges = np.sort(bin_edges)  
-    
+
     histogram = np.ones(NH) / NH
-    print(f"histogram awal  = {histogram}")
     results = []
-    
+    print(f"histogram awal = {histogram}")
     M = len(scores)
     for j in range(M - 1):
         bin_index = np.digitize(scores[j], bin_edges) - 1
-        # print(f"bindex = {bin_index} \n")
-        
+        if bin_index == 0:
+            bin_index = -1
+        print(bin_index)
         updated_histogram = np.zeros_like(histogram)
+        print(updated_histogram)
         for h in range(len(histogram)):
+            # print(f"{h} == {bin_index}")
             if h == bin_index:
                 updated_histogram[h] = (1 - r_H) * histogram[h] + r_H
-                # print(f"iterasi {h} || 1 - {r_H} * {histogram[h] + r_H} = {updated_histogram[h]}\n")
+                # print(f"{updated_histogram[h]}")
             else:
                 updated_histogram[h] = (1 - r_H) * histogram[h]
-                # print(f"iterasi {h} --- 1 - {r_H} * {histogram[h] + r_H} = {updated_histogram[h]}\n")
-
-        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + NH * lambda_H)
-        # print(updated_histogram)
+                # print(f"kondisi else = {updated_histogram[h]}")
+            # print(f"{updated_histogram[h]} | {updated_histogram[h]} | {np.sum(updated_histogram[h])}")
+            updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + NH * lambda_H)
         histogram = updated_histogram
-        # print(f"histo di to = {histogram}")
+        # print(f"setelah normalisasi = {histogram}\n")
         cumulative_distribution = np.cumsum(histogram)
-        # print(f"cumu_dist = {cumulative_distribution}")
-        
+        print(f"setelah normalisasi = {cumulative_distribution}\n")
         threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
         threshold = bin_edges[threshold_index]
-        
+
         alarm = scores[j] >= threshold
         
         # Simpan hasil

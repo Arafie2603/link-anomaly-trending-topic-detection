@@ -30,7 +30,7 @@ def get_stopwords():
         'udah', 'udh', 'aja', 'doang', 'banget', 'bgt', 'ya',
         'sih', 'deh', 'tuh', 'kan', 'kok', 'dong', 'dah','giat',
         'nyata', 'main', 'masuk', 'orang', 'bawa', 'ayo','coba', 'mesti',
-        'bos'
+        'bos', 'kayak', 'biar', 'ketemu'
     }
     stop_words.update(custom_stopwords)
     return stop_words
@@ -183,6 +183,11 @@ def gibbs_sample(documents, K, max_iteration, document_topic_counts, topic_word_
                 topic_word_counts[new_topic][word] += 1
                 topic_counts[new_topic] += 1
                 document_lengths[d] += 1
+            # Di dalam fungsi gibbs_sample, setelah bagian increase counts
+    print(f"\nPenambahan kata '{word}' ke topik {new_topic}")
+    print(f"Document topic counts untuk dok-{d}: {document_topic_counts[d]}")
+    print(f"Topic word counts untuk kata '{word}' di topik {new_topic}: {topic_word_counts[new_topic][word]}")
+    print(f"Topic counts untuk topik {new_topic}: {topic_counts[new_topic]}")
 
 def run_lda(documents, K, max_iteration):
     """Menjalankan algoritma LDA."""
@@ -206,6 +211,7 @@ def run_lda(documents, K, max_iteration):
     for document in documents:
         topics = [random.randrange(K) for _ in document]
         document_topics.append(topics)
+    print(f"topic count = {document_topics}\n")
 
     # Initialize counts
     for d in range(D):
@@ -216,9 +222,9 @@ def run_lda(documents, K, max_iteration):
 
     print("\nStarting Gibbs sampling...")
     gibbs_sample(documents, K, max_iteration, document_topic_counts,
-                 topic_word_counts, topic_counts, document_lengths, document_topics, W)
+                topic_word_counts, topic_counts, document_lengths, document_topics, W)
 
-    return topic_word_counts, document_topic_counts, document_lengths, topic_counts, W
+    return topic_word_counts, document_topic_counts, document_lengths, topic_counts, W, document_topics  # Added document_topics
 
 def get_topic_word_list(topic_word_counts, document_topic_counts, document_lengths, topic_counts, K, W, min_weight=0.0002):
     """Mendapatkan list kata per topik dengan bobotnya."""
@@ -234,11 +240,46 @@ def get_topic_word_list(topic_word_counts, document_topic_counts, document_lengt
                     data.append((word, weight))
         topic_word_list[f"Topik {topic+1}"] = data
     return topic_word_list
-
+def print_document_topic_counts(document_topic_counts):
+    print("\nDistribusi topik pada setiap dokumen:")
+    for doc_idx, counts in enumerate(document_topic_counts):
+        print(f"Dokumen {doc_idx+1}:")
+        for topic, count in counts.items():
+            print(f"Topik {topic}: {count}")
+def print_topic_word_counts(document_topic_counts, topic_word_counts, document_topics, K):
+    """
+    Print topic word counts for specific words in document index 2.
+    """
+    doc_index = 2
+    target_words = {
+        'pilkada', 'integritas', 'julid', 'bicara',
+        'rendah', 'konyol', 'cari', 'perhati'
+    }
+    
+    if doc_index < len(document_topic_counts):
+        print(f"\nAnalysis for specific words in Document {doc_index + 1}:")
+        
+        # Get document's topic distribution
+        topic_dist = document_topic_counts[doc_index]
+        print("\nTopic Distribution in Document:")
+        for topic in range(K):
+            count = topic_dist.get(topic, 0)
+            print(f"Topic {topic + 1}: {count} words")
+            
+            # Print words from this topic
+            print("Words in this topic:")
+            for word in target_words:
+                if topic_word_counts[topic].get(word, 0) > 0:
+                    print(f"  - {word}: {topic_word_counts[topic][word]}")
+        
+    else:
+        print("Error: Document index 2 is out of range!")
 def main():
     # Load and process data
     print("Loading data...")
-    with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\hasil_twitt_trending.json', 'r') as file:
+    # with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\hasil_twitt_trending.json', 'r') as file:
+    #     hasil_twitt_trending = json.load(file)
+    with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\hasil_twitt_trending_diskrit23.json', 'r') as file:
         hasil_twitt_trending = json.load(file)
     # with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\hasil_ground_truth.json', 'r') as file:
     #     hasil_twitt_trending = json.load(file)
@@ -247,6 +288,7 @@ def main():
     
     # Preprocess and tokenize
     tokenized_data = tokenize_data(dat_transform)
+    # print(tokenized_data)
     # from gensim.models import Phrases
     # bigram = Phrases(tokenized_data, min_count=5, threshold=10)
     # trigram = Phrases(bigram[tokenized_data], threshold=10)
@@ -259,9 +301,15 @@ def main():
     
     # Run LDA
     K = 5
-    max_iteration = 180
-    topic_word_counts, document_topic_counts, document_lengths, topic_counts, W = run_lda(
-        tokenized_data, K, max_iteration)
+    max_iteration = 900
+
+    topic_word_counts, document_topic_counts, document_lengths, topic_counts, W, document_topics = run_lda(
+        tokenized_data, K, max_iteration)  
+    # print_document_topic_counts(document_topic_counts)
+
+    # In your main() function, replace this line:
+    print_topic_word_counts(document_topic_counts, topic_word_counts, document_topics, K)
+
 
     # Get and print results
     topic_word_list = get_topic_word_list(topic_word_counts, document_topic_counts,
@@ -272,6 +320,7 @@ def main():
         formatted_words = [f"{word}: {weight:.4f}" for word, weight in words]
         print(f"\n{topic}:")
         print(', '.join(formatted_words))
+    
 
 
 
