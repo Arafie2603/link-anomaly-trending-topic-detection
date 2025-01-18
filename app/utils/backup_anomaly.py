@@ -447,7 +447,7 @@ smoothed_second_scores = apply_smoothing(second_scores, T)
 yscore = np.array(smoothed_second_scores)
 print(yscore)
 
-end_index = len(hasil_agregasi)-(order+1)
+end_index = len(hasil_agregasi)
 start_index_second_smoothed = (order * 6)
 print(start_index_second_smoothed)
 for i in range(start_index_second_smoothed, end_index):

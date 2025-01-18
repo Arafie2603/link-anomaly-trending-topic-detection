@@ -337,6 +337,8 @@ def run_link_anomaly():
                 "rmt": results['rmt'],
                 "rat": results['rat'],
                 "rbins": results['rbins'],
+                "all_anomaly": results['all_anomaly'],
+                "trending_topics": results['trending_topics'],
                 "rhistogram": results['rhistogram'],
                 "waktu_awal": waktu_awal,
                 "waktu_akhir": waktu_akhir,

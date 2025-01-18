@@ -296,7 +296,7 @@ class LinkAnomalyDetector:
         self.second_stage_learning.append(p_SDNML_second)
         self.second_stage_scoring.append(log_p_SDNML_second)
 
-        end_index = len(self.hasil_agregasi) - (order + 1)
+        end_index = len(self.hasil_agregasi)
         start_index_second_smoothed = (order * 6)
 
         self.second_stage_learning.append(p_SDNML_second)
@@ -311,22 +311,13 @@ class LinkAnomalyDetector:
     
     def dynamic_threshold_optimization(self, scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
         """
-        Implementasi Dynamic Threshold Optimization (DTO) dalam satu fungsi
-
-        Parameters:
-        - scores: List skor yang akan dianalisis
-        - NH: Jumlah bin histogram (default: 20)
-        - rho: Parameter untuk threshold (default: 0.05)
-        - r_H: Parameter diskounting (default: 0.001)
-        - lambda_H: Parameter estimasi (default: 0.5)
-
-        Returns:
-        - results: List dictionary berisi hasil untuk setiap sesi
+        Modified Dynamic Threshold Optimization (DTO) to return all trending periods
         """
         import numpy as np
         import json
+        from collections import defaultdict
 
-        # Inisialisasi bin
+        # Initialize bins
         scores = np.array(scores)
         a = np.mean(scores) + 1 * np.std(scores)
         filtered_scores = scores[scores > a]
@@ -337,9 +328,11 @@ class LinkAnomalyDetector:
 
         histogram = np.ones(NH) / NH
         results = []
+        all_trending_periods = []
 
         M = len(scores)
         stage_histogram = []
+        
         for j in range(M - 1):
             bin_index = np.digitize(scores[j], bin_edges) - 1
             updated_histogram = np.zeros_like(histogram)
@@ -358,45 +351,78 @@ class LinkAnomalyDetector:
             threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
             threshold = bin_edges[threshold_index]
             self.histogram.append(histogram)
-
-
-            alarm = scores[j] >= threshold
             self.bins.append(bin_edges)
 
-            # Simpan hasil jika score >= threshold
+            alarm = scores[j] >= threshold
+            
             if alarm:
                 result = {
-                    "Score": float(scores[j]),  # Pastikan tipe data float
-                    "Threshold": float(threshold),  # Konversi threshold ke float
-                    "Alarm": bool(alarm)  # Konversi alarm ke bool
+                    "Score": float(scores[j]),
+                    "Threshold": float(threshold),
+                    "Alarm": bool(alarm)
                 }
 
                 matching_data = next((item for item in self.hasil_agregasi if item.get('yscore') == result['Score']), None)
 
                 if matching_data:
-                    result['Diskrit'] = matching_data['diskrit']
-                    result['Waktu_Awal'] = matching_data['waktu_awal']
-                    result['Waktu_Akhir'] = matching_data['waktu_akhir']
+                    trending_period = {
+                        "diskrit": matching_data['diskrit'],
+                        "waktu_awal": matching_data['waktu_awal'],
+                        "waktu_akhir": matching_data['waktu_akhir'],
+                        "score": result['Score'],
+                        "threshold": result['Threshold']
+                    }
+                    all_trending_periods.append(trending_period)
 
                 results.append(result)
+                
         stage_histogram.append(histogram)
 
-        # Jika waktu awal dan waktu akhir valid, ambil data tweet dari database
-        waktu_awal = next((res['Waktu_Awal'] for res in results if 'Waktu_Awal' in res), "")
-        waktu_akhir = next((res['Waktu_Akhir'] for res in results if 'Waktu_Akhir' in res), "")
+        # Group trending periods by discrete time windows
+        trending_by_time = defaultdict(list)
+        for period in all_trending_periods:
+            key = (period['waktu_awal'], period['waktu_akhir'])
+            trending_by_time[key].append(period)
 
-        if waktu_awal and waktu_akhir:
+        # Format final output
+        final_trending_periods = []
+        for time_window, periods in trending_by_time.items():
+            trending_info = {
+                "diskrit": periods[0]['diskrit'],  # Using first period's discrete time
+                "waktu_awal": time_window[0],
+                "waktu_akhir": time_window[1],
+                "trending_scores": [
+                    {
+                        "score": p['score'],
+                        "threshold": p['threshold']
+                    } for p in periods
+                ],
+                "jumlah_deteksi": len(periods)
+            }
+            final_trending_periods.append(trending_info)
+
+        # Sort by discrete time
+        final_trending_periods.sort(key=lambda x: x['diskrit'])
+
+        # Fetch tweets for each trending period
+        if self.connection is not None:
             cursor = self.connection.cursor()
-            query = f"SELECT full_text FROM data_preprocessed WHERE created_at BETWEEN '{waktu_awal}' AND '{waktu_akhir}'"
-            cursor.execute(query)
-            hasil_twitt_trending = cursor.fetchall()
+            for period in final_trending_periods:
+                query = f"""
+                    SELECT full_text 
+                    FROM data_preprocessed 
+                    WHERE created_at BETWEEN '{period['waktu_awal']}' AND '{period['waktu_akhir']}'
+                """
+                cursor.execute(query)
+                tweets = cursor.fetchall()
+                period['tweets'] = [tweet[0] for tweet in tweets]
+            cursor.close()
 
-            # Simpan hasil ke file JSON
-            with open('hasil_twitt_trending.json', 'w') as file:
-                json.dump(hasil_twitt_trending, file)
-            print(f"{waktu_awal}")
-
-        return results
+        return {
+            "anomaly_results": results,  # Original results
+            "trending_periods": final_trending_periods,  # New structured output with all trending periods
+            "total_trending_periods": len(final_trending_periods)
+        }
 
 
     def process_link_anomaly(self, r: float = 0.0005) -> Dict[str, Any]:
@@ -433,6 +459,17 @@ class LinkAnomalyDetector:
             smoothed_second_scores = self.second_stage(smoothed_scores)
             print("Second stage SDNML results:", smoothed_second_scores)
 
+            dto_results = self.dynamic_threshold_optimization(smoothed_second_scores)
+             # Extract trending periods information
+            trending_periods = dto_results.get('trending_periods', [])
+            total_trending_periods = dto_results.get('total_trending_periods', 0)
+
+            # Create a structured trending topics section
+            trending_topics = {
+                "total_periods": total_trending_periods,
+                "periods": trending_periods
+            }
+
             # Cetak hasil_agregasi untuk memeriksa y_score
             print("Hasil agregasi setelah second stage (dengan y_score):")
             for entry in self.hasil_agregasi:
@@ -447,7 +484,10 @@ class LinkAnomalyDetector:
             mt_list = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.mt]
             histogram = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.histogram]
             bins = [arr.tolist() if isinstance(arr,np.ndarray) else arr for arr in self.bins]
-            
+            cleaned_bins = [
+                [x for x in arr if not (math.isinf(x) or x == float('inf') or x == float('-inf'))]
+                for arr in bins
+            ]
             # Prepare return data
             return {
                 "probabilitas_mention": self.probabilitas_mention,
@@ -464,7 +504,7 @@ class LinkAnomalyDetector:
                 "rvt": self.vt_list,
                 "rmt": mt_list,
                 "rhistogram": histogram,
-                "rbins": bins,
+                "rbins": cleaned_bins,
                 "agregat": aggregation_scores_list,
                 "first_stage_learning": self.first_stage_learning,
                 "first_stage_scoring": self.first_stage_scoring,
@@ -473,6 +513,8 @@ class LinkAnomalyDetector:
                 "second_stage_scoring": self.second_stage_scoring,
                 "second_stage_smoothing": smoothed_second_scores,
                 "anomaly_detection_results": final_results,
+                "all_anomaly": dto_results['anomaly_results'],
+                "trending_topics": trending_topics
             }
         except Exception as e:
             print(f"Error in process_link_anomaly: {str(e)}")

@@ -694,7 +694,7 @@
                 <div class="card-body">
                     <div class="table-responsive">
                         <img src="../../static/img/rumus_second_scoring.png" alt="">
-                        <table class="table table-bordered" id="secondSmoothingTable" width="100%">
+                        <table class="table table-bordered" id="secondScoringTable" width="100%">
                             <thead>
                                 <tr>
                                     <th>Diskrit</th>
@@ -723,7 +723,14 @@
                                                 <mo>)</mo>
                                             </mrow>
                                         </math> </th>
-
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <table class="table table-bordered" id="secondScoringTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Diskrit</th>
                                     <th>Nilai <math>
                                             <mtext>Score</mtext>
                                             <mrow>
@@ -743,17 +750,17 @@
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
                             <span>Show</span>
-                            <select id="secondSmoothingEntriesPerPage"
+                            <select id="secondScoringEntriesPerPage"
                                 class="custom-select custom-select-sm form-control form-control-sm mx-2">
                                 <option value="10">10</option>
                                 <option value="25">25</option>
                             </select>
                             <span>entries</span>
                         </div>
-                        <div id="secondSmoothingPagination" class="d-flex align-items-center">
-                            <button id="secondSmoothingPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
-                            <span id="secondSmoothingPageInfo" class="mx-2">Page 1 of 1</span>
-                            <button id="secondSmoothingNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        <div id="secondScoringPagination" class="d-flex align-items-center">
+                            <button id="secondScoringPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="secondScoringPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="secondScoringNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
                         </div>
                     </div>
                 </div>
@@ -869,10 +876,6 @@
     let secondScoringCurrentPage = 1;
     let secondScoringEntriesPerPage = 5;
 
-    let secondSmoothingCurrentData = [];
-    let secondSmoothingCurrentPage = 1;
-    let secondSmoothingEntriesPerPage = 5;
-
     let mentionsCurrentData = [];
     let limitTwittCurrentData = [];
     let limitTwittCurrentPage = 1;
@@ -898,6 +901,10 @@
     let stCurrentData = [];
     let stCurrentPage = 1;
     let stEntriesPerPage = 5;
+
+    let secondSmoothingCurrentData = [];
+    let secondSmoothingCurrentPage = 1;
+    let secondSmoothingEntriesPerPage = 5;
 
     document.getElementById("stEntriesPerPage").addEventListener("change", (e) => {
         stEntriesPerPage = parseInt(e.target.value);
@@ -1126,27 +1133,6 @@
     });
 
 
-    document.getElementById("firstSmoothingEntriesPerPage").addEventListener("change", (e) => {
-        firstSmoothingEntriesPerPage = parseInt(e.target.value);
-        firstSmoothingCurrentPage = 1;
-        renderFirstSmoothing();
-    });
-
-    document.getElementById("firstSmoothingNextPage").addEventListener("click", () => {
-        const totalPages = Math.ceil(firstSmoothingCurrentData.length / firstSmoothingEntriesPerPage);
-        if (firstSmoothingCurrentPage < totalPages) {
-            firstSmoothingCurrentPage++;
-            renderFirstSmoothing();
-        }
-    });
-
-    document.getElementById("firstSmoothingPrevPage").addEventListener("click", () => {
-        if (firstSmoothingCurrentPage > 1) {
-            firstSmoothingCurrentPage--;
-            renderFirstSmoothing();
-        }
-    });
-
     document.getElementById("secondLearnEntriesPerPage").addEventListener("change", (e) => {
         secondLearnEntriesPerPage = parseInt(e.target.value);
         secondLearnCurrentPage = 1;
@@ -1168,7 +1154,6 @@
         }
     });
 
-    // Event Listeners untuk Second Scoring
     document.getElementById("secondScoringEntriesPerPage").addEventListener("change", (e) => {
         secondScoringEntriesPerPage = parseInt(e.target.value);
         secondScoringCurrentPage = 1;
@@ -1189,28 +1174,6 @@
             rendersecondScoring();
         }
     });
-
-    document.getElementById("secondSmoothingEntriesPerPage").addEventListener("change", (e) => {
-        secondSmoothingEntriesPerPage = parseInt(e.target.value);
-        secondSmoothingCurrentPage = 1;
-        rendersecondSmoothing();
-    });
-
-    document.getElementById("secondSmoothingNextPage").addEventListener("click", () => {
-        const totalPages = Math.ceil(secondSmoothingCurrentData[0].length / secondSmoothingEntriesPerPage);
-        if (secondSmoothingCurrentPage < totalPages) {
-            secondSmoothingCurrentPage++;
-            rendersecondSmoothing();
-        }
-    });
-
-    document.getElementById("secondSmoothingPrevPage").addEventListener("click", () => {
-        if (secondSmoothingCurrentPage > 1) {
-            secondSmoothingCurrentPage--;
-            rendersecondSmoothing();
-        }
-    });
-
 
     document.getElementById("startProcess").addEventListener("click", async () => {
         if (isProcessing) return;
@@ -1240,7 +1203,6 @@
                 firstSmoothingCurrentData = data.data.first_stage_smoothing;
                 secondLearnCurrentData = data.data.second_stage_learning;
                 secondScoringCurrentData = data.data.second_stage_scoring;
-                secondSmoothingCurrentData = data.data.second_stage_smoothing;
                 AtCurrentData = data.data.rvt;
                 ctCurrentData = data.data.rct;
                 atCurrentData = data.data.rat;
@@ -1249,7 +1211,8 @@
                 etCurrentData = data.data.ret;
                 ktCurrentData = data.data.rkt;
                 dtCurrentData = data.data.rdt;
-                stCurrentData = data.data.rst
+                stCurrentData = data.data.rst;
+                secondSmoothingCurrentData = data.data.second_stage_smoothing;
 
 
                 mentionsCurrentData = data.data.mentions;
@@ -1266,7 +1229,6 @@
                 firstSmoothingCurrentPage = 1;
                 secondLearnCurrentPage = 1;
                 secondScoringCurrentPage = 1;
-                secondSmoothingCurrentPage = 1;
                 limitTwittCurrentPage = 1;
                 AtCurrentPage = 1;
                 ktCurrentPage = 1;
@@ -1283,7 +1245,6 @@
                 renderFirstSmoothing();
                 rendersecondLearn();
                 rendersecondScoring();
-                rendersecondSmoothing();
                 renderAtTable();
                 renderKt();
                 renderSt();
@@ -1634,15 +1595,12 @@
     }
 
     function rendersecondScoring() {
-        if (!secondScoringCurrentData || !secondScoringCurrentData[0] || !Array.isArray(secondScoringCurrentData[0])) {
-            console.error('Data tidak valid untuk First Learn table');
-            return;
-        }
 
         const startIndex = (secondScoringCurrentPage - 1) * secondScoringEntriesPerPage;
         const endIndex = startIndex + secondScoringEntriesPerPage;
 
         const data = secondScoringCurrentData[0];
+        const Smoothing = secondSmoothingCurrentData[0];
         const pageData = data.slice(startIndex, endIndex);
 
         const tbody = document.querySelector("#secondScoringTable tbody");
@@ -1658,31 +1616,6 @@
         document.getElementById("secondScoringPrevPage").disabled = secondScoringCurrentPage === 1;
         document.getElementById("secondScoringNextPage").disabled = secondScoringCurrentPage === totalPages;
     }
-    function rendersecondSmoothing() {
-        if (!secondSmoothingCurrentData || !Array.isArray(secondSmoothingCurrentData)) {
-            console.error('Data tidak valid untuk Second Smoothing table');
-            return;
-        }
-
-        const startIndex = (secondSmoothingCurrentPage - 1) * secondSmoothingEntriesPerPage;
-        const endIndex = startIndex + secondSmoothingEntriesPerPage;
-        const pageData = secondSmoothingCurrentData.slice(startIndex, endIndex);
-
-        const tbody = document.querySelector("#secondSmoothingTable tbody");
-        tbody.innerHTML = pageData.map((value, index) => `
-        <tr>
-            <td>${startIndex + index + 1}</td>
-            <td>${parseFloat(value).toFixed(8)}</td>
-        </tr>
-    `).join('');
-
-        const totalPages = Math.ceil(secondSmoothingCurrentData.length / secondSmoothingEntriesPerPage);
-        document.getElementById("secondSmoothingPageInfo").textContent = `Page ${secondSmoothingCurrentPage} of ${totalPages}`;
-        document.getElementById("secondSmoothingPrevPage").disabled = secondSmoothingCurrentPage === 1;
-        document.getElementById("secondSmoothingNextPage").disabled = secondSmoothingCurrentPage === totalPages;
-    }
 
 </script>
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 {% endblock %}
