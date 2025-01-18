@@ -134,7 +134,7 @@ def api_data_preprocessing():
     total_count = cursor.fetchone()[0]
 
     cursor.execute(
-        "SELECT * FROM data_preprocessed LIMIT %s OFFSET %s",
+        "SELECT * FROM data_preprocessed ORDER BY created_at ASC LIMIT %s OFFSET %s",
         (per_page, offset)
     )
     data = cursor.fetchall()

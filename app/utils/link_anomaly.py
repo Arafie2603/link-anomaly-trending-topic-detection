@@ -311,7 +311,7 @@ class LinkAnomalyDetector:
     
     def dynamic_threshold_optimization(self, scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
         """
-        Modified Dynamic Threshold Optimization (DTO) to return all trending periods
+        Modified Dynamic Threshold Optimization (DTO) to include historical periods
         """
         import numpy as np
         import json
@@ -384,13 +384,33 @@ class LinkAnomalyDetector:
             key = (period['waktu_awal'], period['waktu_akhir'])
             trending_by_time[key].append(period)
 
-        # Format final output
+        # Format final output with historical periods
         final_trending_periods = []
         for time_window, periods in trending_by_time.items():
+            current_diskrit = periods[0]['diskrit']
+            
+            # Get historical periods (3 periods before current_diskrit)
+            historical_periods = []
+            for i in range(3):
+                historical_diskrit = current_diskrit - (3-i)
+                historical_data = next((item for item in self.hasil_agregasi 
+                                    if item['diskrit'] == historical_diskrit), None)
+                if historical_data:
+                    historical_periods.append({
+                        "diskrit": historical_data['diskrit'],
+                        "waktu_awal": historical_data['waktu_awal'],
+                        "waktu_akhir": historical_data['waktu_akhir']
+                    })
+
             trending_info = {
-                "diskrit": periods[0]['diskrit'],  # Using first period's discrete time
-                "waktu_awal": time_window[0],
-                "waktu_akhir": time_window[1],
+                "trending_diskrit": current_diskrit,
+                "historical_periods": historical_periods,
+                "historical_start": historical_periods[0]['waktu_awal'] if historical_periods else None,
+                "historical_end": historical_periods[-1]['waktu_akhir'] if historical_periods else None,
+                "current_period": {
+                    "waktu_awal": time_window[0],
+                    "waktu_akhir": time_window[1]
+                },
                 "trending_scores": [
                     {
                         "score": p['score'],
@@ -402,25 +422,50 @@ class LinkAnomalyDetector:
             final_trending_periods.append(trending_info)
 
         # Sort by discrete time
-        final_trending_periods.sort(key=lambda x: x['diskrit'])
+        final_trending_periods.sort(key=lambda x: x['trending_diskrit'])
 
-        # Fetch tweets for each trending period
+        # Fetch tweets for trending periods including historical data
         if self.connection is not None:
             cursor = self.connection.cursor()
             for period in final_trending_periods:
-                query = f"""
-                    SELECT full_text 
-                    FROM data_preprocessed 
-                    WHERE created_at BETWEEN '{period['waktu_awal']}' AND '{period['waktu_akhir']}'
-                """
-                cursor.execute(query)
-                tweets = cursor.fetchall()
-                period['tweets'] = [tweet[0] for tweet in tweets]
+                if period['historical_start'] and period['historical_end']:
+                    # Query for historical period
+                    historical_query = f"""
+                        SELECT full_text, created_at 
+                        FROM data_preprocessed 
+                        WHERE created_at BETWEEN '{period['historical_start']}' AND '{period['historical_end']}'
+                        ORDER BY created_at ASC
+                    """
+                    cursor.execute(historical_query)
+                    historical_tweets = cursor.fetchall()
+                    
+                    # Group tweets by discrete period
+                    historical_tweets_grouped = defaultdict(list)
+                    for tweet in historical_tweets:
+                        tweet_time = tweet[1]
+                        for hist_period in period['historical_periods']:
+                            if hist_period['waktu_awal'] <= str(tweet_time) <= hist_period['waktu_akhir']:
+                                historical_tweets_grouped[hist_period['diskrit']].append(tweet[0])
+                    
+                    period['historical_tweets'] = historical_tweets_grouped
+                    
+                    # Query for trending period
+                    trending_query = f"""
+                        SELECT full_text, created_at
+                        FROM data_preprocessed 
+                        WHERE created_at BETWEEN '{period['current_period']['waktu_awal']}' 
+                        AND '{period['current_period']['waktu_akhir']}'
+                        ORDER BY created_at ASC
+                    """
+                    cursor.execute(trending_query)
+                    trending_tweets = cursor.fetchall()
+                    period['trending_tweets'] = [tweet[0] for tweet in trending_tweets]
+            
             cursor.close()
 
         return {
-            "anomaly_results": results,  # Original results
-            "trending_periods": final_trending_periods,  # New structured output with all trending periods
+            "anomaly_results": results,
+            "trending_periods": final_trending_periods,
             "total_trending_periods": len(final_trending_periods)
         }
 

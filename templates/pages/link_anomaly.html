@@ -727,25 +727,6 @@
                             </thead>
                             <tbody></tbody>
                         </table>
-                        <table class="table table-bordered" id="secondScoringTable" width="100%">
-                            <thead>
-                                <tr>
-                                    <th>Diskrit</th>
-                                    <th>Nilai <math>
-                                            <mtext>Score</mtext>
-                                            <mrow>
-                                                <mo>(</mo>
-                                                <msub>
-                                                    <mi>x</mi>
-                                                    <mi>t</mi>
-                                                </msub>
-                                                <mo>)</mo>
-                                            </mrow>
-                                        </math></th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
@@ -768,23 +749,25 @@
             <!-- Tabel Hasil Second Stage Smoothing -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-primary">Hasil Perhitungan Bins </h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Perhitungan Second Smoothing </h6>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <img src="../../static/img/rumus_bins.png" alt="">
+                        <img src="../../static/img/rumus_second_scoring.png" alt="">
                         <table class="table table-bordered" id="secondSmoothingTable" width="100%">
                             <thead>
                                 <tr>
                                     <th>Diskrit</th>
-                                    <th>Nilai bins <math>
-                                            <mrow>
-                                                <mi>η</mi>
-                                                <mo>(</mo>
-                                                <mi>j</mi>
-                                                <mo>)</mo>
-                                            </mrow>
-                                        </math></th>
+                                    <th>Nilai <math>
+                                        <mtext>Score</mtext>
+                                        <mrow>
+                                            <mo>(</mo>
+                                            <msub>
+                                                <mi>t</mi>
+                                            </msub>
+                                            <mo>)</mo>
+                                        </mrow>
+                                    </math></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -804,6 +787,49 @@
                             <button id="secondSmoothingPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
                             <span id="secondSmoothingPageInfo" class="mx-2">Page 1 of 1</span>
                             <button id="secondSmoothingNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabel Hasil Second Stage Smoothing -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="m-0 font-weight-bold text-primary">Hasil Perhitungan Bins </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <img src="../../static/img/rumus_bins.png" alt="">
+                        <table class="table table-bordered" id="binsTable" width="100%">
+                            <thead>
+                                <tr>
+                                    <th>Sell Bins </th>
+                                    <th>Nilai bins <math>
+                                            <mrow>
+                                                <mi>η</mi>
+                                                <mo>(</mo>
+                                                <mi>j</mi>
+                                                <mo>)</mo>
+                                            </mrow>
+                                        </math></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <span>Show</span>
+                            <select id="binsEntriesPerPage"
+                                class="custom-select custom-select-sm form-control form-control-sm mx-2">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="binsPagination" class="d-flex align-items-center">
+                            <button id="binsPrevPage" class="btn btn-sm btn-secondary mx-1">Previous</button>
+                            <span id="binsPageInfo" class="mx-2">Page 1 of 1</span>
+                            <button id="binsNextPage" class="btn btn-sm btn-secondary mx-1">Next</button>
                         </div>
                     </div>
                 </div>
@@ -905,6 +931,10 @@
     let secondSmoothingCurrentData = [];
     let secondSmoothingCurrentPage = 1;
     let secondSmoothingEntriesPerPage = 5;
+
+    let binsCurrentData = [];
+    let binsCurrentPage = 1;
+    let binsEntriesPerPage = 5;
 
     document.getElementById("stEntriesPerPage").addEventListener("change", (e) => {
         stEntriesPerPage = parseInt(e.target.value);
@@ -1174,6 +1204,46 @@
             rendersecondScoring();
         }
     });
+    document.getElementById("secondSmoothingEntriesPerPage").addEventListener("change", (e) => {
+        secondSmoothingEntriesPerPage = parseInt(e.target.value);
+        secondSmoothingCurrentPage = 1;
+        rendersecondSmoothing();
+    });
+
+    document.getElementById("secondSmoothingNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(secondSmoothingCurrentData[0].length / secondSmoothingEntriesPerPage);
+        if (secondSmoothingCurrentPage < totalPages) {
+            secondSmoothingCurrentPage++;
+            rendersecondSmoothing();
+        }
+    });
+
+    document.getElementById("secondSmoothingPrevPage").addEventListener("click", () => {
+        if (secondSmoothingCurrentPage > 1) {
+            secondSmoothingCurrentPage--;
+            rendersecondSmoothing();
+        }
+    });
+    document.getElementById("binsEntriesPerPage").addEventListener("change", (e) => {
+        binsEntriesPerPage = parseInt(e.target.value);
+        binsCurrentPage = 1;
+        renderbins();
+    });
+
+    document.getElementById("binsNextPage").addEventListener("click", () => {
+        const totalPages = Math.ceil(binsCurrentData[0].length / binsEntriesPerPage);
+        if (binsCurrentPage < totalPages) {
+            binsCurrentPage++;
+            renderbins();
+        }
+    });
+
+    document.getElementById("binsPrevPage").addEventListener("click", () => {
+        if (binsCurrentPage > 1) {
+            binsCurrentPage--;
+            renderbins();
+        }
+    });
 
     document.getElementById("startProcess").addEventListener("click", async () => {
         if (isProcessing) return;
@@ -1213,6 +1283,7 @@
                 dtCurrentData = data.data.rdt;
                 stCurrentData = data.data.rst;
                 secondSmoothingCurrentData = data.data.second_stage_smoothing;
+                binsCurrentData = data.data.rbins;
 
 
                 mentionsCurrentData = data.data.mentions;
@@ -1233,6 +1304,8 @@
                 AtCurrentPage = 1;
                 ktCurrentPage = 1;
                 stCurrentPage = 1;
+                secondSmoothingCurrentPage = 1;
+                binsCurrentPage = 1;
 
                 renderUserTable();
                 renderTaut();
@@ -1248,6 +1321,8 @@
                 renderAtTable();
                 renderKt();
                 renderSt();
+                rendersecondSmoothing();
+                renderbins();
                 document.getElementById("detectionResult").style.display = "block";
                 if (data.data.anomaly_detection_results && data.data.anomaly_detection_results.length > 0) {
 
@@ -1615,6 +1690,46 @@
         document.getElementById("secondScoringPageInfo").textContent = `Page ${secondScoringCurrentPage} of ${totalPages}`;
         document.getElementById("secondScoringPrevPage").disabled = secondScoringCurrentPage === 1;
         document.getElementById("secondScoringNextPage").disabled = secondScoringCurrentPage === totalPages;
+    }
+    
+    function rendersecondSmoothing() {
+        const startIndex = (secondSmoothingCurrentPage - 1) * secondSmoothingEntriesPerPage;
+        const endIndex = startIndex + secondSmoothingEntriesPerPage;
+        const pageData = secondSmoothingCurrentData.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#secondSmoothingTable tbody");
+        tbody.innerHTML = pageData
+            .map((value, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td>
+                <td>${value.toFixed(8)}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(secondSmoothingCurrentData.length / secondSmoothingEntriesPerPage);
+        document.getElementById("secondSmoothingPageInfo").textContent = `Page ${secondSmoothingCurrentPage} of ${totalPages}`;
+        document.getElementById("secondSmoothingPrevPage").disabled = secondSmoothingCurrentPage === 1;
+        document.getElementById("secondSmoothingNextPage").disabled = secondSmoothingCurrentPage === totalPages;
+    }
+    function renderbins() {
+        const startIndex = (binsCurrentPage - 1) * binsEntriesPerPage;
+        const endIndex = startIndex + binsEntriesPerPage;
+        const data = binsCurrentData[0];
+        const pageData = data.slice(startIndex, endIndex);
+
+        const tbody = document.querySelector("#binsTable tbody");
+        tbody.innerHTML = pageData
+            .map((value, index) => `
+            <tr>
+                <td>${startIndex + index + 1}</td>
+                <td>${value.toFixed(8)}</td>
+            </tr>
+        `).join('');
+
+        const totalPages = Math.ceil(binsCurrentData.length / binsEntriesPerPage);
+        document.getElementById("binsPageInfo").textContent = `Page ${binsCurrentPage} of ${totalPages}`;
+        document.getElementById("binsPrevPage").disabled = binsCurrentPage === 1;
+        document.getElementById("binsNextPage").disabled = binsCurrentPage === totalPages;
     }
 
 </script>
