@@ -29,8 +29,8 @@ def get_stopwords():
         'dm', 'rt', 'dr', 'ny', 'nan', 'amp', 'gak', 'nga',
         'udah', 'udh', 'aja', 'doang', 'banget', 'bgt', 'ya',
         'sih', 'deh', 'tuh', 'kan', 'kok', 'dong', 'dah','giat',
-        'nyata', 'main', 'masuk', 'orang', 'bawa', 'ayo','coba', 'mesti',
-        'bos', 'kayak', 'biar', 'ketemu'
+        'nyata', 'main', 'masuk', 'orang','coba', 'mesti',
+        'bos', 'kayak', 'biar', 'ketemu', 
     }
     stop_words.update(custom_stopwords)
     return stop_words
@@ -242,7 +242,7 @@ def get_topic_word_list(topic_word_counts, document_topic_counts, document_lengt
     return topic_word_list
 def print_document_topic_counts(document_topic_counts):
     print("\nDistribusi topik pada setiap dokumen:")
-    for doc_idx, counts in enumerate(document_topic_counts):
+    for doc_idx, counts in enumerate(document_topic_counts[:15]):
         print(f"Dokumen {doc_idx+1}:")
         for topic, count in counts.items():
             print(f"Topik {topic}: {count}")
@@ -252,8 +252,8 @@ def print_topic_word_counts(document_topic_counts, topic_word_counts, document_t
     """
     doc_index = 2
     target_words = {
-        'pilkada', 'integritas', 'julid', 'bicara',
-        'rendah', 'konyol', 'cari', 'perhati'
+        'dukung', 'luthfi', 'gus', 'yasin',
+        'generasi', 'muda', 'suara', 'pilkada'
     }
     
     if doc_index < len(document_topic_counts):
@@ -277,18 +277,19 @@ def print_topic_word_counts(document_topic_counts, topic_word_counts, document_t
 def main():
     # Load and process data
     print("Loading data...")
-    # with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\hasil_twitt_trending.json', 'r') as file:
-    #     hasil_twitt_trending = json.load(file)
-    with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\hasil_twitt_trending_diskrit23.json', 'r') as file:
+    with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\trending_periods\\trending21.json', 'r') as file:
         hasil_twitt_trending = json.load(file)
+    # with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\hasil_twitt_trending_diskrit23.json', 'r') as file:
+    #     hasil_twitt_trending = json.load(file)
     # with open('C:\\Users\\arraf\\OneDrive\\Dokumen\\Kuliah\\Skripsi\\link-anomaly\\link-anomaly-trending-topic-detection\\hasil_ground_truth.json', 'r') as file:
     #     hasil_twitt_trending = json.load(file)
 
-    dat_transform = [item[0] for item in hasil_twitt_trending]
+    dat_transform = [item for item in hasil_twitt_trending]
     
     # Preprocess and tokenize
     tokenized_data = tokenize_data(dat_transform)
-    # print(tokenized_data)
+    # for i in range(15):
+    #     print(tokenized_data[i])
     # from gensim.models import Phrases
     # bigram = Phrases(tokenized_data, min_count=5, threshold=10)
     # trigram = Phrases(bigram[tokenized_data], threshold=10)
@@ -300,12 +301,12 @@ def main():
         return
     
     # Run LDA
-    K = 5
+    K = 10
     max_iteration = 900
 
     topic_word_counts, document_topic_counts, document_lengths, topic_counts, W, document_topics = run_lda(
         tokenized_data, K, max_iteration)  
-    # print_document_topic_counts(document_topic_counts)
+    print(f"dokumen leng = {document_lengths}")
 
     # In your main() function, replace this line:
     print_topic_word_counts(document_topic_counts, topic_word_counts, document_topics, K)

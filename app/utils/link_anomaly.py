@@ -423,44 +423,64 @@ class LinkAnomalyDetector:
 
         # Sort by discrete time
         final_trending_periods.sort(key=lambda x: x['trending_diskrit'])
+        # Create directory for trending periods JSON
+        json_dir = "trending_periods"
+        if not os.path.exists(json_dir):
+            os.makedirs(json_dir)
 
-        # Fetch tweets for trending periods including historical data
+        # Process trending periods and create JSONs
         if self.connection is not None:
-            cursor = self.connection.cursor()
+            cursor = self.connection.cursor(dictionary=True)  # Use dictionary cursor for clearer data handling
+            
             for period in final_trending_periods:
-                if period['historical_start'] and period['historical_end']:
-                    # Query for historical period
-                    historical_query = f"""
+                trending_diskrit = period['trending_diskrit']
+                historical_tweets = []
+                
+                # Get all tweets from historical periods
+                for hist_period in period['historical_periods']:
+                    hist_diskrit = hist_period['diskrit']
+                    # Modify query to match your database structure
+                    query = f"""
                         SELECT full_text, created_at 
                         FROM data_preprocessed 
-                        WHERE created_at BETWEEN '{period['historical_start']}' AND '{period['historical_end']}'
+                        WHERE created_at BETWEEN '{hist_period['waktu_awal']}' AND '{hist_period['waktu_akhir']}'
                         ORDER BY created_at ASC
                     """
-                    cursor.execute(historical_query)
-                    historical_tweets = cursor.fetchall()
                     
-                    # Group tweets by discrete period
-                    historical_tweets_grouped = defaultdict(list)
-                    for tweet in historical_tweets:
-                        tweet_time = tweet[1]
-                        for hist_period in period['historical_periods']:
-                            if hist_period['waktu_awal'] <= str(tweet_time) <= hist_period['waktu_akhir']:
-                                historical_tweets_grouped[hist_period['diskrit']].append(tweet[0])
-                    
-                    period['historical_tweets'] = historical_tweets_grouped
-                    
-                    # Query for trending period
-                    trending_query = f"""
-                        SELECT full_text, created_at
-                        FROM data_preprocessed 
-                        WHERE created_at BETWEEN '{period['current_period']['waktu_awal']}' 
-                        AND '{period['current_period']['waktu_akhir']}'
-                        ORDER BY created_at ASC
-                    """
-                    cursor.execute(trending_query)
-                    trending_tweets = cursor.fetchall()
-                    period['trending_tweets'] = [tweet[0] for tweet in trending_tweets]
-            
+                    try:
+                        cursor.execute(query)
+                        period_tweets = cursor.fetchall()
+                        # Extract only the full_text from each tweet
+                        tweets = [tweet['full_text'] for tweet in period_tweets if tweet['full_text']]
+                        historical_tweets.extend(tweets)
+                    except Exception as e:
+                        print(f"Error querying period {hist_diskrit}: {str(e)}")
+                        continue
+
+                # Create the JSON structure
+                trending_data = {
+                    "trending_info": {
+                        "trending_diskrit": trending_diskrit,
+                        "waktu_awal": period['current_period']['waktu_awal'],
+                        "waktu_akhir": period['current_period']['waktu_akhir']
+                    },
+                    "historical_periods": period['historical_periods'],
+                    "historical_start": period['historical_start'],
+                    "historical_end": period['historical_end'],
+                    "combined_historical_tweets": historical_tweets  # Add the collected tweets
+                }
+
+                # Save to JSON file
+                json_filename = f"trending_{trending_diskrit}.json"
+                json_path = os.path.join(json_dir, json_filename)
+                
+                try:
+                    with open(json_path, 'w', encoding='utf-8') as f:
+                        json.dump(trending_data, f, indent=4, ensure_ascii=False)
+                    print(f"Successfully saved {len(historical_tweets)} tweets for trending period {trending_diskrit}")
+                except Exception as e:
+                    print(f"Error saving JSON for trending period {trending_diskrit}: {str(e)}")
+
             cursor.close()
 
         return {

@@ -759,15 +759,15 @@
                                 <tr>
                                     <th>Diskrit</th>
                                     <th>Nilai <math>
-                                        <mtext>Score</mtext>
-                                        <mrow>
-                                            <mo>(</mo>
-                                            <msub>
-                                                <mi>t</mi>
-                                            </msub>
-                                            <mo>)</mo>
-                                        </mrow>
-                                    </math></th>
+                                            <mtext>Score</mtext>
+                                            <mrow>
+                                                <mo>(</mo>
+                                                <msub>
+                                                    <mi>t</mi>
+                                                </msub>
+                                                <mo>)</mo>
+                                            </mrow>
+                                        </math></th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -840,22 +840,14 @@
                     <h6 class="m-0 font-weight-bold text-primary">Hasil Deteksi Anomali</h6>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-warning" role="alert">
-                        <h4 class="alert-heading mb-3">Status: <span id="anomalyStatus"></span></h4>
-                        <p id="anomalyInfo"></p>
-                        <hr>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Score:</strong> <span id="anomalyScore"></span></p>
-                            </div>
-                            <div class="col-md-6">
-                                <p class="mb-1"><strong>Threshold:</strong> <span id="anomalyThreshold"></span></p>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Tambahkan kontainer untuk topik yang sedang tren -->
+                    <div id="trendingTopicsContainer"></div>
+                    <!-- Tambahkan kontainer untuk hasil agregasi -->
+                    <div id="hasilAgregasiContainer"></div>
+                    <!-- Tambahkan canvas untuk grafik diskrit -->
+                    <canvas id="diskritChart" width="400" height="200"></canvas>
                 </div>
             </div>
-
 
         </div>
     </div>
@@ -1285,13 +1277,12 @@
                 secondSmoothingCurrentData = data.data.second_stage_smoothing;
                 binsCurrentData = data.data.rbins;
 
-
                 mentionsCurrentData = data.data.mentions;
                 limitTwittCurrentData = data.data.limit_twitt;
 
                 userCurrentPage = 1;
                 mentionCurrentPage = 1;
-                skorAnomalyCurrentPage = 1
+                skorAnomalyCurrentPage = 1;
                 tautCurrentPage = 1;
                 hasilAgregasiCurrentPage = 1;
                 firstLearnCurrentPage = 1;
@@ -1324,24 +1315,29 @@
                 rendersecondSmoothing();
                 renderbins();
                 document.getElementById("detectionResult").style.display = "block";
-                if (data.data.anomaly_detection_results && data.data.anomaly_detection_results.length > 0) {
 
-                    const anomaly = data.data.anomaly_detection_results[0];
+                if (data.data.trending_topics) {
+                    const periods = data.data.trending_topics.periods;
 
-                    // Update status anomali
-                    document.getElementById("anomalyStatus").textContent = anomaly.Alarm ? "Terdeteksi" : "Normal";
+                    // Filter periods to only include those with relevant diskrit
+                    const filteredPeriods = periods.map(period => {
+                        const historicalPeriods = period.historical_periods.filter(hp =>
+                            [18, 19, 20, 22, 23, 24].includes(hp.diskrit)
+                        );
+                        return { ...period, historical_periods: historicalPeriods };
+                    });
 
-                    // Update info anomali dengan data diskrit dan waktu
-                    document.getElementById("anomalyInfo").textContent = `Hasil dari deteksi anomali terdapat pada diskrit ${anomaly.Diskrit}, pada waktu ${anomaly.Waktu_Awal} - ${anomaly.Waktu_Akhir}`;
-
-                    // Update score dan threshold
-                    document.getElementById("anomalyScore").textContent = anomaly.Score.toFixed(4);
-                    document.getElementById("anomalyThreshold").textContent = anomaly.Threshold.toFixed(4);
-
-                    // Ubah warna alert berdasarkan status
-                    const alertElement = document.querySelector('.alert');
-                    alertElement.className = anomaly.Alarm ? 'alert alert-danger' : 'alert alert-success';
+                    displayTrendingTopics(filteredPeriods);
                 }
+
+                // Filter and display 'hasil_agregasi' data for trending diskrit
+                const hasilAgregasiData = data.data.hasil_agregasi.filter(item =>
+                    [18, 19, 20, 22, 23, 24].includes(item.diskrit)
+                );
+                displayHasilAgregasi(hasilAgregasiData);
+
+                // Display chart for all diskrit
+                displayDiskritChart(data.data.hasil_agregasi);
             } else {
                 throw new Error(data.message);
             }
@@ -1354,6 +1350,87 @@
             isProcessing = false;
         }
     });
+    function displayHasilAgregasi(hasilAgregasiData) {
+        const hasilAgregasiContainer = document.getElementById("hasilAgregasiContainer");
+        hasilAgregasiContainer.innerHTML = ''; // Clear previous data
+    }
+
+    function displayDiskritChart(hasilAgregasiData) {
+        const ctx = document.getElementById('diskritChart').getContext('2d');
+        const diskritLabels = hasilAgregasiData.map(item => item.diskrit);
+        const mentionCounts = hasilAgregasiData.map(item => item.jumlah_mention_agregasi);
+        const waktuAwalLabels = hasilAgregasiData.map(item => item.waktu_awal);
+        const trendingDiskrit = [18, 19, 20, 22, 23, 24];
+
+        const backgroundColors = diskritLabels.map(diskrit =>
+            trendingDiskrit.includes(diskrit) ? 'rgba(255, 99, 132, 0.2)' : 'rgba(54, 162, 235, 0.2)'
+        );
+
+        const borderColors = diskritLabels.map(diskrit =>
+            trendingDiskrit.includes(diskrit) ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)'
+        );
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: diskritLabels,
+                datasets: [{
+                    label: 'Jumlah Mention Agregasi',
+                    data: mentionCounts,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    },
+                    x: {
+                        ticks: {
+                            callback: function (value, index, values) {
+                                return `Diskrit ${diskritLabels[index]} - ${waktuAwalLabels[index]}`;
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Grafik Jumlah Mention Agregasi per Diskrit'
+                    }
+                }
+            }
+        });
+    }
+
+
+    function displayTrendingTopics(periods) {
+        const trendingContainer = document.getElementById("trendingTopicsContainer");
+        trendingContainer.innerHTML = ''; // Clear previous data
+
+        periods.forEach(period => {
+            const periodElement = document.createElement("div");
+            periodElement.classList.add("period");
+
+            const historicalPeriodsElement = document.createElement("div");
+            historicalPeriodsElement.classList.add("historical-periods");
+            historicalPeriodsElement.innerHTML = `<h4>Periode Trending</h4>`;
+
+            period.historical_periods.forEach(hp => {
+                const hpElement = document.createElement("p");
+                hpElement.innerHTML = `Diskrit: ${hp.diskrit}, Waktu Awal: ${hp.waktu_awal}, Waktu Akhir: ${hp.waktu_akhir}`;
+                historicalPeriodsElement.appendChild(hpElement);
+            });
+            periodElement.appendChild(historicalPeriodsElement);
+            trendingContainer.appendChild(periodElement);
+        });
+    }
 
     function renderSt() {
         const startIndex = (stCurrentPage - 1) * stEntriesPerPage;
@@ -1691,7 +1768,7 @@
         document.getElementById("secondScoringPrevPage").disabled = secondScoringCurrentPage === 1;
         document.getElementById("secondScoringNextPage").disabled = secondScoringCurrentPage === totalPages;
     }
-    
+
     function rendersecondSmoothing() {
         const startIndex = (secondSmoothingCurrentPage - 1) * secondSmoothingEntriesPerPage;
         const endIndex = startIndex + secondSmoothingEntriesPerPage;
@@ -1733,4 +1810,5 @@
     }
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}

@@ -470,7 +470,7 @@ Langkah akhir: Implementasi Dynamic Threshold Optimation (DTO)
     9. Alarm output diatur pada variabel alarm
 """
 
-def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.001, lambda_H=0.5):
+def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.005, lambda_H=0.01):
     """
     Implementasi Dynamic Threshold Optimization (DTO) dalam satu fungsi
     

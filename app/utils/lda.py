@@ -36,11 +36,13 @@ class LDAModel:
         
         # Add custom stopwords
         custom_stopwords = {
-            'lah', 'kah', 'pun', 'amp', 'yg', 'dgn', 'nya', 'utk',
+           'lah', 'kah', 'pun', 'amp', 'yg', 'dgn', 'nya', 'utk',
             'jd', 'trs', 'gw', 'gue', 'lu', 'klo', 'kl', 'si',
             'dm', 'rt', 'dr', 'ny', 'nan', 'amp', 'gak', 'nga',
             'udah', 'udh', 'aja', 'doang', 'banget', 'bgt', 'ya',
-            'sih', 'deh', 'tuh', 'kan', 'kok', 'dong', 'dah','giat'
+            'sih', 'deh', 'tuh', 'kan', 'kok', 'dong', 'dah','giat',
+            'nyata', 'main', 'masuk', 'orang','coba', 'mesti',
+            'bos', 'kayak', 'biar', 'ketemu', 
         }
         self.stop_words.update(custom_stopwords)
         
@@ -265,7 +267,7 @@ def main():
     dat_transform = [item[0] for item in hasil_twitt_trending]
     
     # Initialize and fit LDA model
-    lda_model = LDAModel(n_topics=5, max_iterations=3000)
+    lda_model = LDAModel(n_topics=10, max_iterations=900)
     
     # Preprocess and tokenize data
     tokenized_data = lda_model.tokenize_data(dat_transform)

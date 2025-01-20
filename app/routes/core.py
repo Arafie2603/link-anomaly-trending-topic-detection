@@ -7,6 +7,7 @@ from app.utils.link_anomaly import LinkAnomalyDetector
 from app.utils.lda import LDAModel
 import json 
 import logging
+import math
 import mysql
 import os
 import pandas as pd
@@ -365,50 +366,94 @@ def run_link_anomaly():
 @core_bp.route("/api/run_lda", methods=['GET'])
 def run_lda():
     """
-    Flask Blueprint endpoint to run LDA on trending tweets data
+    Flask Blueprint endpoint to run LDA on multiple trending periods
     Returns:
-        JSON response with topics and their associated words/weights
+        JSON response with topics and their associated words/weights for each trending period
     """
     try:
-        # Check if file exists
-        if not os.path.exists('hasil_twitt_trending.json'):
+        trending_dir = "trending_periods"
+        if not os.path.exists(trending_dir):
             return jsonify({
                 "status": "error",
-                "message": "Hasil perhitungan Link Anomaly tidak ditemukan"
+                "message": "Directory trending_periods tidak ditemukan"
             }), 404
+
+        # Get all trending period JSON files
+        trending_files = [f for f in os.listdir(trending_dir) if f.endswith('.json')]
         
-        # Load and process data
-        with open('hasil_twitt_trending.json', 'r') as file:
-            hasil_twitt_trending = json.load(file)
+        if not trending_files:
+            return jsonify({
+                "status": "error",
+                "message": "Tidak ada file trending yang ditemukan"
+            }), 404
+
+        all_results = {}
         
-        # Extract text data
-        data = [item[0] for item in hasil_twitt_trending]
-        
-        # Initialize and run LDA
-        lda = LDAModel(n_topics=5, max_iterations=3000)  # Menggunakan parameter yang benar
-        tokenized_data = lda.tokenize_data(data)
-        
-        # Fit model
-        lda.fit(tokenized_data)  # Metode fit tidak mengembalikan nilai
-        
-        # Get topic words
-        topic_word_list = lda.get_topic_words()  # Tidak perlu parameter karena sudah ada di dalam class
-        
-        # Format response
-        formatted_topics = {}
-        for topic, words in topic_word_list.items():
-            formatted_topics[topic] = [{"word": word, "weight": round(weight, 4)} 
-                                    for word, weight in words]
-        
+        # Process each trending period
+        for file_name in trending_files:
+            file_path = os.path.join(trending_dir, file_name)
+            
+            # Load trending period data
+            with open(file_path, 'r', encoding='utf-8') as file:
+                trending_data = json.load(file)
+            
+            # Extract tweets from the trending period
+            tweets = trending_data.get('combined_historical_tweets', [])
+            
+            if not tweets:
+                print(f"No tweets found in {file_name}")
+                continue
+
+            # Initialize and run LDA
+            lda = LDAModel(n_topics=10, max_iterations=900)
+            tokenized_data = lda.tokenize_data(tweets)
+            
+            # Fit model
+            lda.fit(tokenized_data)
+            
+            # Get topic words
+            topic_word_list = lda.get_topic_words()
+            
+            # Format topics for this trending period
+            formatted_topics = {}
+            for topic, words in topic_word_list.items():
+                formatted_topics[topic] = [
+                    {"word": word, "weight": round(weight, 4)} 
+                    for word, weight in words
+                ]
+            
+            # Store results for this trending period
+            trending_diskrit = trending_data['trending_info']['trending_diskrit']
+            all_results[f"trending_{trending_diskrit}"] = {
+                "period_info": {
+                    "trending_diskrit": trending_diskrit,
+                    "waktu_awal": trending_data['trending_info']['waktu_awal'],
+                    "waktu_akhir": trending_data['trending_info']['waktu_akhir'],
+                    "historical_start": trending_data['historical_start'],
+                    "historical_end": trending_data['historical_end']
+                },
+                "topics": formatted_topics
+            }
+
+        # Save combined results
+        output_dir = "lda_results"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        output_path = os.path.join(output_dir, "all_trending_topics.json")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(all_results, f, indent=4, ensure_ascii=False)
+
         return jsonify({
             "status": "success",
-            "topics": formatted_topics
+            "results": all_results,
+            "message": f"LDA analysis completed for {len(all_results)} trending periods"
         }), 200
-        
-    except json.JSONDecodeError:
+
+    except json.JSONDecodeError as e:
         return jsonify({
             "status": "error",
-            "message": "File JSON tidak valid"
+            "message": f"File JSON tidak valid: {str(e)}"
         }), 400
         
     except Exception as e:
@@ -416,36 +461,59 @@ def run_lda():
             "status": "error",
             "message": f"Terjadi kesalahan: {str(e)}"
         }), 500
-@core_bp.route("/get_trending_tweets", methods=['GET'])
-def get_trending_tweets():
-    """
-    Flask Blueprint endpoint to get trending tweets data
-    Returns:
-        JSON response with trending tweets
-    """
+    
+    
+@core_bp.route("/get_period_tweets", methods=['GET'])
+def get_period_tweets():
+    """Get tweets from data_preprocessed table for specific time range"""
     try:
-        if not os.path.exists('hasil_twitt_trending.json'):
-            return jsonify({
-                "status": "error",
-                "message": "File hasil_twitt_trending.json tidak ditemukan"
-            }), 404
-            
-        with open('hasil_twitt_trending.json', 'r') as file:
-            trending_tweets = json.load(file)
-            
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        # Calculate offset
+        offset = (page - 1) * per_page
+        
+        # Get total count
+        count_query = """
+            SELECT COUNT(*) 
+            FROM data_preprocessed 
+            WHERE created_at BETWEEN %s AND %s
+        """
+        
+        # Get paginated tweets
+        tweets_query = """
+            SELECT full_text, created_at 
+            FROM data_preprocessed 
+            WHERE created_at BETWEEN %s AND %s
+            ORDER BY created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        
+        with create_connection() as conn:
+            with conn.cursor() as cur:
+                # Get total count
+                cur.execute(count_query, (start_date, end_date))
+                total_tweets = cur.fetchone()[0]
+                
+                # Get tweets
+                cur.execute(tweets_query, (start_date, end_date, per_page, offset))
+                tweets = cur.fetchall()
+                
         return jsonify({
             "status": "success",
-            "data": trending_tweets
+            "data": {
+                "tweets": tweets,
+                "total": total_tweets,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": math.ceil(total_tweets / per_page)
+            }
         }), 200
-        
-    except json.JSONDecodeError:
-        return jsonify({
-            "status": "error",
-            "message": "File JSON tidak valid"
-        }), 400
-        
+
     except Exception as e:
         return jsonify({
             "status": "error",
-            "message": f"Terjadi kesalahan: {str(e)}"
+            "message": str(e)
         }), 500
