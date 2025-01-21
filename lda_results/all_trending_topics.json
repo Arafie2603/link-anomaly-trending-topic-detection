@@ -11,256 +11,248 @@
             "Topik 1": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0056
+                    "weight": 0.007
                 },
                 {
-                    "word": "debat",
-                    "weight": 0.0017
+                    "word": "jateng",
+                    "weight": 0.0022
                 },
                 {
                     "word": "hasil",
-                    "weight": 0.001
+                    "weight": 0.0008
+                },
+                {
+                    "word": "debat",
+                    "weight": 0.0006
                 },
                 {
                     "word": "calon",
                     "weight": 0.0006
                 },
                 {
-                    "word": "gubernur",
-                    "weight": 0.0006
-                },
-                {
-                    "word": "jateng",
+                    "word": "survei",
                     "weight": 0.0005
                 },
                 {
-                    "word": "survei",
+                    "word": "gubernur",
                     "weight": 0.0004
                 },
                 {
-                    "word": "jawa",
-                    "weight": 0.0003
-                },
-                {
                     "word": "lawan",
-                    "weight": 0.0002
+                    "weight": 0.0003
                 }
             ],
             "Topik 2": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0112
+                    "weight": 0.0066
                 },
                 {
-                    "word": "jateng",
-                    "weight": 0.0009
+                    "word": "calon",
+                    "weight": 0.002
                 },
                 {
-                    "word": "lihat",
+                    "word": "jakarta",
+                    "weight": 0.0012
+                },
+                {
+                    "word": "pilih",
+                    "weight": 0.0011
+                },
+                {
+                    "word": "gubernur",
+                    "weight": 0.001
+                },
+                {
+                    "word": "debat",
                     "weight": 0.0005
                 },
                 {
-                    "word": "masyarakat",
+                    "word": "daerah",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "pimpin",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "warga",
                     "weight": 0.0003
+                },
+                {
+                    "word": "bupati",
+                    "weight": 0.0002
+                },
+                {
+                    "word": "menang",
+                    "weight": 0.0002
                 }
             ],
             "Topik 3": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0053
+                    "weight": 0.0085
                 },
                 {
-                    "word": "jakarta",
-                    "weight": 0.0022
+                    "word": "debat",
+                    "weight": 0.0015
                 },
                 {
-                    "word": "jokowi",
-                    "weight": 0.0011
+                    "word": "core",
+                    "weight": 0.0003
                 },
                 {
-                    "word": "pilih",
-                    "weight": 0.0006
-                },
-                {
-                    "word": "dki",
-                    "weight": 0.0005
-                },
-                {
-                    "word": "menang",
+                    "word": "bikin",
                     "weight": 0.0002
                 },
                 {
-                    "word": "solo",
+                    "word": "publik",
                     "weight": 0.0002
                 }
             ],
             "Topik 4": [
                 {
                     "word": "pilkada",
-                    "weight": 0.009
+                    "weight": 0.0067
                 },
                 {
-                    "word": "debat",
-                    "weight": 0.0009
+                    "word": "berita",
+                    "weight": 0.0005
                 },
                 {
-                    "word": "uang",
+                    "word": "papua",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "damai",
                     "weight": 0.0004
                 },
                 {
-                    "word": "bikin",
-                    "weight": 0.0002
+                    "word": "jaga",
+                    "weight": 0.0003
                 }
             ],
             "Topik 5": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0105
+                    "weight": 0.0095
                 },
                 {
                     "word": "dukung",
-                    "weight": 0.0026
-                },
-                {
-                    "word": "menang",
                     "weight": 0.0022
                 },
                 {
-                    "word": "prabowo",
-                    "weight": 0.0003
+                    "word": "jokowi",
+                    "weight": 0.001
+                },
+                {
+                    "word": "menang",
+                    "weight": 0.0009
                 },
                 {
                     "word": "jakarta",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "prabowo",
+                    "weight": 0.0004
+                },
+                {
+                    "word": "pilpres",
                     "weight": 0.0003
-                },
-                {
-                    "word": "putar",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "kali",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "coblos",
-                    "weight": 0.0002
                 }
             ],
             "Topik 6": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0051
+                    "weight": 0.0068
                 },
                 {
-                    "word": "calon",
-                    "weight": 0.0019
+                    "word": "menang",
+                    "weight": 0.0005
                 },
                 {
-                    "word": "pilih",
-                    "weight": 0.0016
+                    "word": "maju",
+                    "weight": 0.0005
                 },
                 {
-                    "word": "daerah",
-                    "weight": 0.0016
-                },
-                {
-                    "word": "gubernur",
-                    "weight": 0.0009
-                },
-                {
-                    "word": "pimpin",
-                    "weight": 0.0006
-                },
-                {
-                    "word": "bupati",
-                    "weight": 0.0006
-                },
-                {
-                    "word": "wakil",
+                    "word": "anak",
                     "weight": 0.0003
                 },
                 {
-                    "word": "kepala",
+                    "word": "paslon",
                     "weight": 0.0003
                 }
             ],
             "Topik 7": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0053
+                    "weight": 0.0071
                 },
                 {
                     "word": "serentak",
-                    "weight": 0.0011
+                    "weight": 0.0009
                 },
                 {
                     "word": "masyarakat",
-                    "weight": 0.0005
+                    "weight": 0.0007
                 },
                 {
-                    "word": "laksana",
-                    "weight": 0.0003
-                },
-                {
-                    "word": "aman",
-                    "weight": 0.0002
+                    "word": "pilih",
+                    "weight": 0.0004
                 },
                 {
                     "word": "kota",
-                    "weight": 0.0002
+                    "weight": 0.0004
                 },
                 {
-                    "word": "kabupaten",
-                    "weight": 0.0002
+                    "word": "kpu",
+                    "weight": 0.0004
                 },
                 {
-                    "word": "november",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "damai",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "jelang",
+                    "word": "aman",
                     "weight": 0.0002
                 }
             ],
             "Topik 8": [
                 {
                     "word": "pilkada",
-                    "weight": 0.012
+                    "weight": 0.0114
                 },
                 {
                     "word": "damai",
                     "weight": 0.0012
                 },
                 {
-                    "word": "jaga",
+                    "word": "muda",
                     "weight": 0.0009
                 },
                 {
-                    "word": "muda",
-                    "weight": 0.0007
+                    "word": "ayo",
+                    "weight": 0.0008
                 },
                 {
                     "word": "generasi",
-                    "weight": 0.0007
+                    "weight": 0.0008
                 },
                 {
-                    "word": "aman",
-                    "weight": 0.0006
+                    "word": "sukses",
+                    "weight": 0.0008
                 },
                 {
                     "word": "suara",
                     "weight": 0.0006
                 },
                 {
-                    "word": "sukses",
+                    "word": "dukung",
                     "weight": 0.0006
                 },
                 {
-                    "word": "ayo",
+                    "word": "jaga",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "aman",
                     "weight": 0.0005
                 },
                 {
@@ -268,8 +260,12 @@
                     "weight": 0.0004
                 },
                 {
-                    "word": "dukung",
+                    "word": "gus",
                     "weight": 0.0003
+                },
+                {
+                    "word": "hoaks",
+                    "weight": 0.0002
                 },
                 {
                     "word": "luthfi",
@@ -278,62 +274,38 @@
                 {
                     "word": "yasin",
                     "weight": 0.0002
-                },
-                {
-                    "word": "gus",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "hoaks",
-                    "weight": 0.0002
-                },
-                {
-                    "word": "papua",
-                    "weight": 0.0002
                 }
             ],
             "Topik 9": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0043
+                    "weight": 0.0052
                 },
                 {
-                    "word": "partai",
-                    "weight": 0.0008
-                },
-                {
-                    "word": "calon",
-                    "weight": 0.0005
-                },
-                {
-                    "word": "pilpres",
-                    "weight": 0.0004
-                },
-                {
-                    "word": "kampanye",
-                    "weight": 0.0003
-                },
-                {
-                    "word": "rakyat",
-                    "weight": 0.0003
+                    "word": "politik",
+                    "weight": 0.0006
                 },
                 {
                     "word": "pemilu",
+                    "weight": 0.0003
+                },
+                {
+                    "word": "partai",
                     "weight": 0.0003
                 }
             ],
             "Topik 10": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0059
+                    "weight": 0.0043
                 },
                 {
-                    "word": "debat",
+                    "word": "kampanye",
                     "weight": 0.0005
                 },
                 {
-                    "word": "presiden",
-                    "weight": 0.0005
+                    "word": "calon",
+                    "weight": 0.0004
                 },
                 {
                     "word": "jurkam",
@@ -354,200 +326,216 @@
             "Topik 1": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0141
+                    "weight": 0.0055
                 },
                 {
-                    "word": "bansos",
-                    "weight": 0.0003
+                    "word": "serentak",
+                    "weight": 0.0007
                 },
                 {
-                    "word": "warga",
-                    "weight": 0.0003
+                    "word": "suara",
+                    "weight": 0.0006
                 },
                 {
                     "word": "pilih",
-                    "weight": 0.0003
+                    "weight": 0.0004
                 }
             ],
             "Topik 2": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0079
-                },
-                {
-                    "word": "jokowi",
-                    "weight": 0.0019
+                    "weight": 0.0047
                 },
                 {
                     "word": "presiden",
-                    "weight": 0.0016
+                    "weight": 0.0015
                 },
                 {
-                    "word": "rakyat",
-                    "weight": 0.0006
+                    "word": "jokowi",
+                    "weight": 0.0009
+                },
+                {
+                    "word": "jakarta",
+                    "weight": 0.0005
                 },
                 {
                     "word": "mantan",
                     "weight": 0.0005
+                },
+                {
+                    "word": "dki",
+                    "weight": 0.0004
+                },
+                {
+                    "word": "prabowo",
+                    "weight": 0.0004
+                },
+                {
+                    "word": "warga",
+                    "weight": 0.0003
                 }
             ],
             "Topik 3": [
                 {
-                    "word": "calon",
-                    "weight": 0.0045
-                },
-                {
                     "word": "pilkada",
-                    "weight": 0.004
+                    "weight": 0.011
                 },
                 {
-                    "word": "daerah",
-                    "weight": 0.0011
+                    "word": "calon",
+                    "weight": 0.0034
                 },
                 {
                     "word": "gubernur",
-                    "weight": 0.0009
+                    "weight": 0.0006
                 },
                 {
                     "word": "bupati",
-                    "weight": 0.0008
-                },
-                {
-                    "word": "wakil",
-                    "weight": 0.0008
-                },
-                {
-                    "word": "debat",
                     "weight": 0.0005
                 },
                 {
-                    "word": "kepala",
-                    "weight": 0.0003
+                    "word": "wakil",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "daerah",
+                    "weight": 0.0004
+                },
+                {
+                    "word": "pilih",
+                    "weight": 0.0002
+                },
+                {
+                    "word": "debat",
+                    "weight": 0.0002
                 }
             ],
             "Topik 4": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0069
-                },
-                {
-                    "word": "partai",
-                    "weight": 0.0008
+                    "weight": 0.0067
                 },
                 {
                     "word": "jokowi",
-                    "weight": 0.0006
+                    "weight": 0.0012
+                },
+                {
+                    "word": "partai",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "bansos",
+                    "weight": 0.0004
                 },
                 {
                     "word": "dukung",
-                    "weight": 0.0004
-                },
-                {
-                    "word": "politik",
-                    "weight": 0.0004
-                },
-                {
-                    "word": "menang",
-                    "weight": 0.0003
+                    "weight": 0.0002
                 }
             ],
             "Topik 5": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0045
+                    "weight": 0.0026
                 },
                 {
-                    "word": "serentak",
-                    "weight": 0.0008
+                    "word": "aman",
+                    "weight": 0.0011
                 },
                 {
                     "word": "masyarakat",
                     "weight": 0.0006
                 },
                 {
-                    "word": "aman",
+                    "word": "jelang",
                     "weight": 0.0006
                 },
                 {
                     "word": "tertib",
+                    "weight": 0.0004
+                },
+                {
+                    "word": "serentak",
+                    "weight": 0.0003
+                },
+                {
+                    "word": "damai",
+                    "weight": 0.0002
+                },
+                {
+                    "word": "ajak",
                     "weight": 0.0002
                 }
             ],
             "Topik 6": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0082
+                    "weight": 0.0112
                 },
                 {
                     "word": "dukung",
-                    "weight": 0.0013
-                },
-                {
-                    "word": "menang",
-                    "weight": 0.0008
+                    "weight": 0.0018
                 },
                 {
                     "word": "pasang",
-                    "weight": 0.0006
+                    "weight": 0.0005
                 },
                 {
                     "word": "garut",
                     "weight": 0.0004
                 },
                 {
-                    "word": "pks",
+                    "word": "menang",
                     "weight": 0.0003
                 },
                 {
-                    "word": "ojek",
+                    "word": "pks",
                     "weight": 0.0002
                 },
                 {
-                    "word": "tanggamus",
+                    "word": "coblos",
                     "weight": 0.0002
                 }
             ],
             "Topik 7": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0035
+                    "weight": 0.0106
                 },
                 {
-                    "word": "ridwan",
+                    "word": "rakyat",
                     "weight": 0.0004
                 },
                 {
-                    "word": "pilih",
-                    "weight": 0.0004
-                },
-                {
-                    "word": "pimpin",
+                    "word": "pilpres",
                     "weight": 0.0003
                 },
                 {
-                    "word": "kamil",
-                    "weight": 0.0003
+                    "word": "menang",
+                    "weight": 0.0002
                 },
                 {
-                    "word": "indramayu",
+                    "word": "uang",
                     "weight": 0.0002
                 }
             ],
             "Topik 8": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0076
+                    "weight": 0.0073
                 },
                 {
                     "word": "jakarta",
-                    "weight": 0.0012
+                    "weight": 0.0009
                 },
                 {
                     "word": "debat",
-                    "weight": 0.0006
+                    "weight": 0.0005
                 },
                 {
                     "word": "kompas",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "pilih",
                     "weight": 0.0005
                 },
                 {
@@ -556,7 +544,15 @@
                 },
                 {
                     "word": "calon",
+                    "weight": 0.0005
+                },
+                {
+                    "word": "hasil",
                     "weight": 0.0004
+                },
+                {
+                    "word": "jateng",
+                    "weight": 0.0003
                 },
                 {
                     "word": "survei",
@@ -570,19 +566,15 @@
             "Topik 9": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0091
+                    "weight": 0.0074
                 },
                 {
                     "word": "pdip",
-                    "weight": 0.001
+                    "weight": 0.0012
                 },
                 {
                     "word": "menang",
-                    "weight": 0.0007
-                },
-                {
-                    "word": "pilpres",
-                    "weight": 0.0006
+                    "weight": 0.001
                 },
                 {
                     "word": "judol",
@@ -593,6 +585,14 @@
                     "weight": 0.0003
                 },
                 {
+                    "word": "pilpres",
+                    "weight": 0.0003
+                },
+                {
+                    "word": "tim",
+                    "weight": 0.0003
+                },
+                {
                     "word": "timses",
                     "weight": 0.0002
                 }
@@ -600,15 +600,15 @@
             "Topik 10": [
                 {
                     "word": "pilkada",
-                    "weight": 0.0201
+                    "weight": 0.0188
                 },
                 {
                     "word": "bawaslu",
-                    "weight": 0.0093
+                    "weight": 0.0103
                 },
                 {
                     "word": "awas",
-                    "weight": 0.0035
+                    "weight": 0.0039
                 },
                 {
                     "word": "jaga",
@@ -619,24 +619,24 @@
                     "weight": 0.0007
                 },
                 {
-                    "word": "jalan",
-                    "weight": 0.0007
+                    "word": "demokrasi",
+                    "weight": 0.0006
                 },
                 {
-                    "word": "demokrasi",
+                    "word": "jalan",
                     "weight": 0.0005
                 },
                 {
                     "word": "jujur",
-                    "weight": 0.0004
+                    "weight": 0.0005
                 },
                 {
                     "word": "ketat",
-                    "weight": 0.0003
+                    "weight": 0.0004
                 },
                 {
                     "word": "curang",
-                    "weight": 0.0002
+                    "weight": 0.0003
                 }
             ]
         }

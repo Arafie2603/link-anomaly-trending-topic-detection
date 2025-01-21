@@ -505,6 +505,7 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.005, lambda_H=
     M = len(scores)
     for j in range(M - 1):
         bin_index = np.digitize(scores[j], bin_edges) - 1
+        print(bin_index)
         if bin_index == 0:
             bin_index = -1
         print(bin_index)
@@ -519,14 +520,14 @@ def dynamic_threshold_optimization(scores, NH=20, rho=0.05, r_H=0.005, lambda_H=
                 updated_histogram[h] = (1 - r_H) * histogram[h]
                 # print(f"kondisi else = {updated_histogram[h]}")
             # print(f"{updated_histogram[h]} | {updated_histogram[h]} | {np.sum(updated_histogram[h])}")
-            updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + NH * lambda_H)
+        updated_histogram = (updated_histogram + lambda_H) / (np.sum(updated_histogram) + NH * lambda_H)
         histogram = updated_histogram
-        # print(f"setelah normalisasi = {histogram}\n")
+        print(f"setelah normalisasi = {histogram}\n")
         cumulative_distribution = np.cumsum(histogram)
-        print(f"setelah normalisasi = {cumulative_distribution}\n")
+        print(f"kumulatif = {cumulative_distribution}\n")
         threshold_index = np.argmax(cumulative_distribution >= (1 - rho))
         threshold = bin_edges[threshold_index]
-
+        print(f"threshold = {threshold}")
         alarm = scores[j] >= threshold
         
         # Simpan hasil

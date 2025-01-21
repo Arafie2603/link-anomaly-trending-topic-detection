@@ -23,24 +23,22 @@ class DatabaseConfig:
         self.password = os.getenv("DB_PASSWORD", "")
         self.database = os.getenv("DB_NAME", "db_tugas_akhir")
         
-        # Initialize stopwords with proper case handling
+        # Initialize stopword tools
         stop_factory = StopWordRemoverFactory()
         self.stopwords = set(word.lower() for word in stop_factory.get_stop_words())
         
-        # Add custom stopwords (ensure they're lowercase)
+        # Add custom stopwords
         additional_stopwords = {
             'pak', 'moga', 'kalau', 'nya', 'baik', 'lewat', 
             'apa', 'iya', 'ikut', 'jadi', 'yang', 'untuk',
             'pada', 'ke', 'para', 'namun', 'menurut', 'antara',
             'dia', 'dua', 'ia', 'seperti', 'jika', 'sehingga',
             'bisa', 'karena', 'yaitu', 'yakni', 'daripada',
-            'sih', 'dong', 'deh', 'loh', 'kok', 'kan','lah'
-            'kek', 'gitu', 'gini', 'mah', 'teh', 'nah','semoga', 'giat','si','kamu'
+            'sih', 'dong', 'deh', 'loh', 'kok', 'kan', 'lah',
+            'kek', 'gitu', 'gini', 'mah', 'teh', 'nah', 'semoga', 'giat', 'si', 'kamu'
         }
         self.stopwords.update(additional_stopwords)
-        logger.debug(f"Initialized stopwords count: {len(self.stopwords)}")
-        logger.debug(f"Sample stopwords: {list(self.stopwords)[:10]}")
-    
+        
     def get_connection(self):
         try:
             connection = mysql.connector.connect(
@@ -49,7 +47,7 @@ class DatabaseConfig:
                 password=self.password,
                 database=self.database
             )
-            logger.info("Successfully connected to database.")
+            logger.info("Successfully connected to database")
             return connection
         except mysql.connector.Error as err:
             logger.error(f"Failed to connect to database: {err}")
@@ -170,7 +168,7 @@ def process_row(args):
     """Process a single row of data"""
     try:
         row, progress = args
-        created_at, username, full_text = row
+        tweet_id_str, created_at, username, full_text = row
         
         # Convert time and process mentions
         created_at_jakarta = convert_to_localtime(created_at)
@@ -190,7 +188,7 @@ def process_row(args):
         # Update progress
         progress.value += 1
         
-        return (created_at_jakarta, username, processed_text, mentions, jumlah_mention)
+        return (tweet_id_str, created_at_jakarta, username, processed_text, mentions, jumlah_mention)
     except Exception as e:
         logger.error(f"Error processing row: {e}")
         raise
@@ -310,50 +308,95 @@ def stemming(text):
     return ' '.join(stemmed_words)
 
 class Preprocessor:
-    def __init__(self, socketio):
+    def __init__(self, socketio=None):
+        # Initialize database config and connection
         self.db_config = DatabaseConfig()
         self.connection = self.db_config.get_connection()
         self.socketio = socketio
         
-        # Initialize tools
-        stop_factory = StopWordRemoverFactory()
+        # Initialize NLP tools
         stemmer_factory = StemmerFactory()
-        # Initialize stopwords with proper case handling
-        stop_factory = StopWordRemoverFactory()
-        self.stopwords = set(word.lower() for word in stop_factory.get_stop_words())
-        
-        # Add custom stopwords (ensure they're lowercase)
-        additional_stopwords = {
-            'pak', 'moga', 'kalau', 'nya', 'baik', 'lewat', 
-            'apa', 'iya', 'ikut', 'jadi', 'yang', 'untuk',
-            'pada', 'ke', 'para', 'namun', 'menurut', 'antara',
-            'dia', 'dua', 'ia', 'seperti', 'jika', 'sehingga',
-            'bisa', 'karena', 'yaitu', 'yakni', 'daripada',
-            'sih', 'dong', 'deh', 'loh', 'kok', 'kan','lah'
-            'kek', 'gitu', 'gini', 'mah', 'teh', 'nah','semoga', 'giat','si','kamu'
-        }
-        self.stopwords.update(additional_stopwords)
-        
-        # Load and prepare resources
-        self.slangwords_dict = load_slangwords(self.connection)
-        self.stopwords = self.db_config.stopwords
         self.stemmer = stemmer_factory.create_stemmer()
+        self.stopwords = self.db_config.stopwords
+        
+        # Load slangwords
+        self.slangwords_dict = self._load_slangwords()
         
         logger.info("Preprocessor initialized successfully")
+    
+    def _load_slangwords(self):
+        """Internal method to load slangwords"""
+        cursor = self.connection.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT kata_tidak_baku, kata_baku FROM slangwords")
+            slangwords = {
+                row['kata_tidak_baku'].strip().lower(): row['kata_baku'].strip().lower() 
+                for row in cursor.fetchall()
+            }
+            
+            # Add additional slangwords
+            additional_slangwords = {
+                'milu': 'pemilu',
+                'tdk': 'tidak',
+                'gk': 'tidak',
+                'ga': 'tidak',
+                'gak': 'tidak',
+                'krn': 'karena',
+                'dgn': 'dengan',
+                'utk': 'untuk',
+                'spy': 'supaya',
+                'yg': 'yang',
+                'skrg': 'sekarang',
+                'hrs': 'harus',
+                'dr': 'dari',
+                'dll': 'dan lain lain',
+                'dkk': 'dan kawan kawan',
+                'sy': 'saya',
+                'lg': 'lagi',
+                'klo': 'kalau',
+                'trs': 'terus',
+                'bs': 'bisa',
+                'byk': 'banyak'
+            }
+            slangwords.update(additional_slangwords)
+            logger.info(f"Loaded {len(slangwords)} slangwords")
+            return slangwords
+            
+        except Exception as e:
+            logger.error(f"Error loading slangwords: {e}")
+            raise
+        finally:
+            cursor.close()
 
+    def send_progress_update(self, current, total, start_time):
+        if self.socketio:
+            if current > 0:
+                elapsed_time = time.time() - start_time
+                eta = (elapsed_time / current) * (total - current)
+                eta_formatted = time.strftime("%H:%M:%S", time.gmtime(eta))
+            else:
+                eta_formatted = "--:--:--"
+                
+            self.socketio.emit('progress_cleansing_stemming', {
+                'current': current,
+                'total': total,
+                'eta': eta_formatted
+            })
     def save_to_database(self, processed_data):
-        """Save processed data to database"""
+        """Save processed data to database with relations"""
         cursor = self.connection.cursor()
         try:
-            # Create table if not exists
+            # Create table if not exists with new structure
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS data_preprocessed (
                     id INT AUTO_INCREMENT PRIMARY KEY,
+                    tweet_id_str VARCHAR(255),
                     created_at DATETIME,
                     username VARCHAR(255),
                     full_text TEXT,
                     mentions TEXT,
-                    jumlah_mention INT
+                    jumlah_mention INT,
+                    FOREIGN KEY (tweet_id_str) REFERENCES data_twitter(id_str)
                 );
             """)
             self.connection.commit()
@@ -361,40 +404,43 @@ class Preprocessor:
             # Filter data with mentions
             filtered_data = [
                 row for row in processed_data 
-                if row[3] and row[3].strip() and row[4] > 0
+                if row[4] and row[4].strip() and row[5] > 0  # Adjusted indices for new data structure
             ]
 
             # Insert filtered data
             insert_query = """
                 INSERT INTO data_preprocessed 
-                (created_at, username, full_text, mentions, jumlah_mention)
-                VALUES (%s, %s, %s, %s, %s)
+                (tweet_id_str, created_at, username, full_text, mentions, jumlah_mention)
+                VALUES (%s, %s, %s, %s, %s, %s)
             """
             cursor.executemany(insert_query, filtered_data)
             
             self.connection.commit()
             logger.info(f"Saved {len(filtered_data)} tweets with mentions")
-            logger.info(f"Skipped {len(processed_data) - len(filtered_data)} tweets without mentions")
             
         except Exception as e:
             logger.error(f"Error saving to database: {e}")
+            self.connection.rollback()
             raise
         finally:
             cursor.close()
 
-
+    def close_connection(self):
+        if hasattr(self, 'connection') and self.connection.is_connected():
+            self.connection.close()
+            logger.info("Database connection closed")
     def run_preprocessing(self):
         cursor = self.connection.cursor()
         try:
-            # Get data from database
-            cursor.execute("SELECT created_at, username, full_text FROM data_twitter")
+            # Get data from database including id_str
+            cursor.execute("SELECT id_str, created_at, username, full_text FROM data_twitter")
             data = cursor.fetchall()
             
             if not data:
                 logger.warning("No data found in data_twitter table")
                 return {"error": "No data found to process"}
 
-            # Prepare database config for workers
+            # Rest of the preprocessing logic remains the same
             db_config_dict = {
                 'host': self.db_config.host,
                 'user': self.db_config.user,
@@ -402,7 +448,6 @@ class Preprocessor:
                 'database': self.db_config.database
             }
 
-            # Process data using multiprocessing
             with Manager() as manager:
                 progress = manager.Value('i', 0)
                 total_items = len(data)
@@ -412,11 +457,10 @@ class Preprocessor:
                     processes=4,
                     initializer=init_worker,
                     initargs=(db_config_dict, 
-                             self.slangwords_dict,
-                             self.stopwords,
-                             self.stemmer)
+                            self.slangwords_dict,
+                            self.stopwords,
+                            self.stemmer)
                 ) as pool:
-                    
                     processed_data = []
                     for result in pool.imap_unordered(process_row, [(row, progress) for row in data]):
                         processed_data.append(result)
@@ -442,22 +486,3 @@ class Preprocessor:
         finally:
             cursor.close()
             self.close_connection()
-
-    def close_connection(self):
-        if hasattr(self, 'connection') and self.connection.is_connected():
-            self.connection.close()
-            logger.info("Database connection closed.")
-
-    def send_progress_update(self, current, total, start_time):
-        if current > 0:
-            elapsed_time = time.time() - start_time
-            eta = (elapsed_time / current) * (total - current)
-            eta_formatted = time.strftime("%H:%M:%S", time.gmtime(eta))
-        else:
-            eta_formatted = "--:--:--"
-            
-        self.socketio.emit('progress_cleansing_stemming', {
-            'current': current,
-            'total': total,
-            'eta': eta_formatted
-        })

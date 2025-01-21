@@ -122,45 +122,94 @@ def total_data_stats():
 @core_bp.route("/api/preprocessing")
 def api_data_preprocessing():
     """
-    API route yang menyediakan data yang telah dipra-proses dengan pagination.
+    API route yang menyediakan data yang telah dipra-proses dengan pagination,
+    termasuk data tweet asli.
     """
     db = create_connection()
-    cursor = db.cursor()
+    cursor = db.cursor(dictionary=True)  # Use dictionary cursor for easier data handling
 
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 10))  
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))  
 
-    offset = (page - 1) * per_page
-    cursor.execute("SELECT COUNT(*) FROM data_preprocessed")
-    total_count = cursor.fetchone()[0]
+        offset = (page - 1) * per_page
+        
+        # Get total count
+        cursor.execute("SELECT COUNT(*) as count FROM data_preprocessed")
+        total_count = cursor.fetchone()['count']
 
-    cursor.execute(
-        "SELECT * FROM data_preprocessed ORDER BY created_at ASC LIMIT %s OFFSET %s",
-        (per_page, offset)
-    )
-    data = cursor.fetchall()
+        # Modified query to handle possible NULL values and use proper aliases
+        cursor.execute("""
+            SELECT 
+                dp.id,
+                dp.tweet_id_str,
+                dp.created_at,
+                dp.username,
+                dp.full_text as processed_text,
+                dp.mentions,
+                dp.jumlah_mention,
+                dt.full_text as original_text,
+                dt.favorite_count,
+                dt.conversation_id_str,
+                dt.image_url,
+                dt.in_reply_to_screen_name,
+                dt.lang,
+                dt.location,
+                dt.quote_count,
+                dt.reply_count,
+                dt.retweet_count,
+                dt.tweet_url
+            FROM data_preprocessed dp
+            LEFT JOIN data_twitter dt ON dp.tweet_id_str = dt.id_str
+            ORDER BY dp.created_at DESC 
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
+        
+        data = cursor.fetchall()
 
-    # Format data
-    response_data = [
-        {
-            "id": row[0],
-            "created_at": row[1],
-            "username": row[2],
-            "full_text": row[3],
-            "mentions": row[4],
-            "jumlah_mention": row[5],
-        }
-        for row in data
-    ]
+        # Format data
+        response_data = [
+            {
+                "id": row['id'],
+                "tweet_id_str": row['tweet_id_str'],
+                "created_at": row['created_at'].strftime('%Y-%m-%d %H:%M:%S') if row['created_at'] else None,
+                "username": row['username'],
+                "processed_text": row['processed_text'],
+                "mentions": row['mentions'],
+                "jumlah_mention": row['jumlah_mention'],
+                "original_data": {
+                    "original_text": row['original_text'],
+                    "favorite_count": row['favorite_count'],
+                    "conversation_id_str": row['conversation_id_str'],
+                    "image_url": row['image_url'],
+                    "in_reply_to_screen_name": row['in_reply_to_screen_name'],
+                    "lang": row['lang'],
+                    "location": row['location'],
+                    "quote_count": row['quote_count'],
+                    "reply_count": row['reply_count'],
+                    "retweet_count": row['retweet_count'],
+                    "tweet_url": row['tweet_url']
+                }
+            }
+            for row in data
+        ]
 
-    return jsonify({
-        "data": response_data,
-        "total_count": total_count,
-        "page": page,
-        "per_page": per_page,
-        "total_pages": (total_count + per_page - 1) // per_page,
-    })
+        return jsonify({
+            "data": response_data,
+            "total_count": total_count,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total_count + per_page - 1) // per_page,
+        })
 
+    except Exception as e:
+        logger.error(f"Error in api_data_preprocessing: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        db.close()
+        
 @core_bp.route("/api/deleted_preprocessing_data", methods=['POST'])
 def deleted_preprocessing_data():
     """
