@@ -56,6 +56,14 @@
             <i class="fas fa-fwd fa-puzzle-piece"></i>
             <span>Topic Modeling</span></a>
     </li>
+    <hr class="sidebar-divider my-0">
+
+    <!-- Nav Item - Modelling Topik -->
+    <li class="nav-item {% if request.path == '/pengujian' %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('core.pengujian_route') }}">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Pengujian</span></a>
+    </li>
 
     <!-- Divider -->
     <hr class="sidebar-divider my-0">

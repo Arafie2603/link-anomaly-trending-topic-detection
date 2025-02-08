@@ -18,7 +18,7 @@
         <!-- Historical Tweets for each period -->
         <div class="card shadow mb-4" id="periodTweets21" style="display: none;">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Historical Tweets Period 21</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Historical Tweets Period 18 19 20</h6>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -42,7 +42,7 @@
 
         <div class="card shadow mb-4" id="periodTweets25" style="display: none;">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Historical Tweets Period 25</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Historical Tweets Period 22 23 24</h6>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -343,10 +343,13 @@
                 historical_end: formatDateTime(periodInfo.historical_end),
                 waktu_awal: formatDateTime(periodInfo.waktu_awal),
                 waktu_akhir: formatDateTime(periodInfo.waktu_akhir)
-            };
+            }; 
+            
+            const trendingDiskrit = periodInfo.trending_diskrit;
+            const historicalPeriods = [trendingDiskrit - 3, trendingDiskrit - 2, trendingDiskrit - 1].join(' ');
 
             section.innerHTML = `
-        <h4 class="h5 mb-3 font-weight-bold">Trending Period ${periodInfo.trending_diskrit}</h4>
+        <h4 class="h5 mb-3 font-weight-bold">Trending Period ${historicalPeriods}</h4>
         <div class="card mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Informasi Periode</h6>
@@ -354,12 +357,8 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <p><strong>Historical Start:</strong><br>${formattedDates.historical_start}</p>
-                        <p><strong>Historical End:</strong><br>${formattedDates.historical_end}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Waktu Awal:</strong><br>${formattedDates.waktu_awal}</p>
-                        <p><strong>Waktu Akhir:</strong><br>${formattedDates.waktu_akhir}</p>
+                        <p><strong>Waktu Awal:</strong><br>${formattedDates.historical_start}</p>
+                        <p><strong>Waktu Akhir:</strong><br>${formattedDates.historical_end}</p>
                     </div>
                 </div>
             </div>
@@ -376,6 +375,7 @@
             let topicsHTML = '<div class="row">';
 
             for (const [topicName, words] of Object.entries(topics)) {
+                const formattedWords = words.map(item => `"${item.word}"`).join(', ');
                 topicsHTML += `
             <div class="col-md-6 mb-4">
                 <div class="card">
@@ -403,6 +403,9 @@
                                 </tbody>
                             </table>
                         </div>
+                        <!-- Kata-kata dalam format yang diinginkan -->
+                        <h6 class="font-weight-bold">Topic Words:</h6>
+                        <p class="mb-0">${formattedWords}</p>
                     </div>
                 </div>
             </div>

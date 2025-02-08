@@ -44,6 +44,11 @@ def fetch_tweets_data():
 
     return tweets_data
 
+connection = create_connection()
+cursor = connection.cursor()
+cursor.execute("SELECT SUM(jumlah_mention) AS total FROM data_preprocessed;")
+result = cursor.fetchone()  # Ambil satu baris
+m = result['total'] if result and 'total' in result else 0  
 # Fetching the tweets data
 tweets_data = fetch_tweets_data()
 for tweet in tweets_data:
@@ -65,14 +70,12 @@ hasil_perhitungan = []
 def hitung_probabilitas_mention(tweets):
     alpha = 0.5
     beta = 0.5
-    m = 0
+    # m = 0
 
     for i, tweet in enumerate(tweets):
         iterasi = 1.0
         k = tweet['jumlah_mention']  
-        temp_m = tweet['jumlah_mention'] 
-        m += temp_m
-        n = i
+        n = len(tweets_data)
 
         for j in range(k+1):
             if j == 0:

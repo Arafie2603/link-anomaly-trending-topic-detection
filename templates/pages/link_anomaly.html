@@ -11,6 +11,7 @@
         </div>
         <div class="card-body">
             <button class="btn btn-primary mb-3" id="startProcess">Mulai Proses</button>
+
             <div id="loading" style="display: none;">
                 <div class="d-flex justify-content-center">
                     <div class="spinner-border text-primary" role="status">
@@ -18,12 +19,17 @@
                     </div>
                 </div>
                 <p class="text-center mt-2">Sedang memuat data...</p>
+
             </div>
 
             <div class="card mb-4">
                 <div class="card-header">
                     <h6 class="m-0 font-weight-bold text-primary">Limit Twitt</h6>
                 </div>
+                <center>
+                    <img src="../../static/img/proses_link_anomaly.png" alt="" width="200" height="400">
+                </center>
+
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered" id="limitTwittTable" width="100%">
@@ -1359,7 +1365,15 @@
         const ctx = document.getElementById('diskritChart').getContext('2d');
         const diskritLabels = hasilAgregasiData.map(item => item.diskrit);
         const mentionCounts = hasilAgregasiData.map(item => item.jumlah_mention_agregasi);
-        const waktuAwalLabels = hasilAgregasiData.map(item => item.waktu_awal);
+
+        // Format waktu menjadi "3" dan "Oktober" (dua baris)
+        const waktuAwalLabels = hasilAgregasiData.map(item => {
+            const date = new Date(item.waktu_awal);
+            const day = date.getDate(); // Hari (3)
+            const month = date.toLocaleDateString('id-ID', { month: 'long' }); // Bulan (Oktober)
+            return { day, month };
+        });
+
         const trendingDiskrit = [18, 19, 20, 22, 23, 24];
 
         const backgroundColors = diskritLabels.map(diskrit =>
@@ -1390,7 +1404,8 @@
                     x: {
                         ticks: {
                             callback: function (value, index, values) {
-                                return `Diskrit ${diskritLabels[index]} - ${waktuAwalLabels[index]}`;
+                                const { day, month } = waktuAwalLabels[index];
+                                return `${day}\n${month}`; // Label dua baris: Hari di atas, Bulan di bawah
                             }
                         }
                     }
@@ -1408,6 +1423,8 @@
             }
         });
     }
+
+
 
 
     function displayTrendingTopics(periods) {

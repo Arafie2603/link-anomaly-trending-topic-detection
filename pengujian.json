@@ -1,0 +1,43 @@
+{
+  "data": {
+    "diskrit_18_19_20": {
+      "ground_truth": [
+        {
+          "judul": "jokowi, kampanye, pilkada, Etis, hak, masyarakat",
+          "sumber": "https://nasional.kompas.com/read/2024/10/30/08214651/jokowi-dan-kampanye-pilkada-2024-etis-atau-tidak-jadi-hak-masyarakat",
+          "tanggal": "30 Oktober 2024",
+          "contoh_tweet": "calon gubernur pilkada jakarta bekas xl pimpin daerah layak pimpin jakarta hasil kerja pimpin jawa barat banyak memangkkan bangun",
+          "hasil_trending": "pilkada, debat, hasil, calon, gubernur, jateng, survei, jawa, lawan"
+        },
+        {
+          "judul": "relawan, calon, kepala, daerah, jokowi, jurkamp",
+          "sumber": "https://nasional.kompas.com/read/2024/11/02/19160911/relawan-bilang-banyak-calon-kepala-daerah-minta-jokowi-jadi-juru-kampanye",
+          "tanggal": "2 November 2024",
+          "contoh_tweet": "debat pilkada jateng ahmad luthfi singgung sikap jokowi hingga sebut perintah prabowo",
+          "hasil_trending": "pilkada, jateng, lihat, masyarakat"
+        }
+      ],
+      "metrics": {
+        "topic_recall": { "value": 0.6, "fraction": "6/10" },
+        "keyword_precision": { "value": 0.517857143, "fraction": "29/56" },
+        "keyword_recall": { "value": 0.568627451, "fraction": "29/51" }
+      }
+    },
+    "diskrit_22_23_24": {
+      "ground_truth": [
+        {
+          "judul": "debat, perdana, pilkada, kendal, paslon",
+          "sumber": "https://regional.kompas.com/read/2024/11/05/073014478/debat-perdana-pilkada-kendal-3-paslon-puas",
+          "tanggal": "5 November 2024",
+          "contoh_tweet": "juta ton beras buat siap pilkada guyur bansos",
+          "hasil_trending": "pilkada, serentak, suara, pilih"
+        }
+      ],
+      "metrics": {
+        "topic_recall": { "value": 0.53, "fraction": "5.3/10" },
+        "keyword_precision": { "value": 0.543859649, "fraction": "31/57" },
+        "keyword_recall": { "value": 0.508196721, "fraction": "29/61" }
+      }
+    }
+  }
+}

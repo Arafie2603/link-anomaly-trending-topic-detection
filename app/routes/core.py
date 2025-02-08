@@ -46,6 +46,13 @@ def page_import_data():
 def topic_modeling_route():
     return render_template("pages/modeling.html")
 
+from flask import render_template
+from app.utils.pengujian_data import PENGUJIAN_DATA
+
+@core_bp.route('/pengujian')
+def pengujian_route():
+    return render_template('pages/pengujian.html', data=PENGUJIAN_DATA)
+
 # =========== API DATA ===========
 @core_bp.route("/api/data")
 def api_data():
